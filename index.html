@@ -379,6 +379,10 @@ label {
   line-height: 1.45; margin-bottom: 16px;
 }
 .modal-hint a { color: var(--accent); text-decoration: none; }
+.confirm-message {
+  font-size: 15px; color: var(--text);
+  line-height: 1.5; margin: 4px 0 4px;
+}
 .modal-section {
   margin-top: 22px; padding-top: 16px;
   border-top: 1px solid var(--border);
@@ -1012,6 +1016,23 @@ label {
   </div>
 </div>
 
+<!-- Bestätigungs-Dialog (D-068): ersetzt das native, grelle confirm() der
+     Plattform durch einen ins Dunkel-Theme passenden Dialog. Bewusst NICHT
+     in ESCAPE_CLOSABLE_MODALS — nur die beiden Buttons entscheiden, analog
+     zu den übrigen risikobehafteten Dialogen dieser App. Zuletzt im DOM
+     platziert, damit er auch über einem bereits offenen Modal (z. B.
+     Sync-Einstellungen) sichtbar liegt. -->
+<div class="modal-back" id="confirm-modal">
+  <div class="modal">
+    <h2>Bestätigen</h2>
+    <p class="confirm-message" id="confirm-message"></p>
+    <div class="modal-buttons">
+      <button class="btn-cancel" id="confirm-cancel">Abbrechen</button>
+      <button class="btn-delete" id="confirm-ok">Löschen</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ SCRIPT ══════════════════ -->
 <script>
 'use strict';
@@ -1184,6 +1205,33 @@ function showToast(message) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 1600);
+}
+
+// D-068: ersetzt das native, plattform-grelle confirm() durch einen
+// ins Dunkel-Theme passenden Dialog (#confirm-modal). Gibt ein Promise<bool>
+// zurück, analog zum bisherigen `if (!confirm(...)) return;`-Muster, jetzt
+// als `if (!(await showConfirm(...))) return;` in async Funktionen.
+function showConfirm(message, opts = {}) {
+  const label = opts.confirmLabel || 'Löschen';
+  const danger = opts.danger !== false;
+  return new Promise(resolve => {
+    $('confirm-message').textContent = message;
+    const okBtn = $('confirm-ok');
+    const cancelBtn = $('confirm-cancel');
+    okBtn.textContent = label;
+    okBtn.className = danger ? 'btn-delete' : 'btn-save';
+    const cleanup = (result) => {
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      closeModal('confirm-modal');
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    openModal('confirm-modal');
+  });
 }
 
 // D-052: einheitliches Status-Icon (ersetzt ✅/❌-Emoji) — kleiner Kreis-Badge
@@ -2145,8 +2193,8 @@ function saveFndOverview(id) {
   syncNow({ force: true });
 }
 
-function deleteFndFromWorkspace(id) {
-  if (!confirm('Stiftung löschen (Tombstone)?')) return;
+async function deleteFndFromWorkspace(id) {
+  if (!(await showConfirm('Stiftung löschen (Tombstone)?'))) return;
   tombstone('foundations', id);
   closeFndWorkspace();
   renderFoundations();
@@ -2328,8 +2376,8 @@ function renderFndPersonsSubList(foundationId) {
       </div>`).join('')
     : '<p style="font-size:13px;color:var(--text-dim)">Noch keine Kontakte.</p>';
   $('fndw-persons-list').querySelectorAll('.sub-item-del').forEach(btn =>
-    btn.addEventListener('click', () => {
-      if (!confirm('Kontakt löschen?')) return;
+    btn.addEventListener('click', async () => {
+      if (!(await showConfirm('Kontakt löschen?'))) return;
       tombstone('persons', btn.dataset.pid);
       renderFndPersonsSubList(foundationId);
       syncNow({ force: true });
@@ -2601,8 +2649,8 @@ function saveProjectOverview(id) {
   syncNow({ force: true });
 }
 
-function deleteProjectFromWorkspace(id) {
-  if (!confirm('Projekt löschen (Tombstone)?')) return;
+async function deleteProjectFromWorkspace(id) {
+  if (!(await showConfirm('Projekt löschen (Tombstone)?'))) return;
   tombstone('projects', id);
   closeProjectWorkspace();
   renderProjects();
@@ -2745,7 +2793,7 @@ function linkProjectBlock(projectId, blockId) {
 async function copyBlockToLibrary(blockId) {
   const b = findBlock(blockId);
   if (!b) return;
-  if (!confirm(`„${b.titel}" in die Bibliothek kopieren (trägerweit wiederverwendbar)? Das Original bleibt unverändert am Projekt bestehen.`)) return;
+  if (!(await showConfirm(`„${b.titel}" in die Bibliothek kopieren (trägerweit wiederverwendbar)? Das Original bleibt unverändert am Projekt bestehen.`, { confirmLabel: 'Kopieren', danger: false }))) return;
 
   const newBlockId = newId('blk');
   const newVariants = [];
@@ -3252,8 +3300,8 @@ function saveAppOverview(id) {
   syncNow({ force: true });
 }
 
-function deleteAppFromWorkspace(id) {
-  if (!confirm('Antrag löschen (Tombstone)?')) return;
+async function deleteAppFromWorkspace(id) {
+  if (!(await showConfirm('Antrag löschen (Tombstone)?'))) return;
   const deletedProjectId = localData.applications.find(x => x.id === id)?.projectId;
   tombstone('applications', id);
   if (deletedProjectId) removeFinancingPlanForApplication(id, deletedProjectId);
@@ -3555,10 +3603,10 @@ async function downloadFinalDocumentFile(appId) {
   }
 }
 
-function removeFinalDocument(appId) {
+async function removeFinalDocument(appId) {
   // D-057-Konvention: Datei bleibt im Daten-Repo bestehen (wie bei
   // gelöschten Bausteinen), nur die Referenz am Antrag wird entfernt.
-  if (!confirm('Dokument-Referenz entfernen? Die Datei bleibt im Daten-Repo bestehen.')) return;
+  if (!(await showConfirm('Dokument-Referenz entfernen? Die Datei bleibt im Daten-Repo bestehen.', { confirmLabel: 'Entfernen' }))) return;
   const a = localData.applications.find(x => x.id === appId);
   if (!a) return;
   a.finalDocument = null;
@@ -3875,8 +3923,8 @@ function saveBlk(id) {
   syncNow({ force: true });
 }
 
-function deleteBlk(id) {
-  if (!confirm('Baustein löschen (Tombstone)? Zugehörige Texte bleiben im Daten-Repo, werden aber nicht mehr referenziert.')) return;
+async function deleteBlk(id) {
+  if (!(await showConfirm('Baustein löschen (Tombstone)? Zugehörige Texte bleiben im Daten-Repo, werden aber nicht mehr referenziert.'))) return;
   const b = findBlock(id);
   tombstone('blocks', id);
   closeBlockWorkspace();
@@ -4625,8 +4673,8 @@ function savePrompt(id) {
   syncNow({ force: true });
 }
 
-function deletePrompt(id) {
-  if (!confirm('Prompt-Vorlage löschen (Tombstone)?')) return;
+async function deletePrompt(id) {
+  if (!(await showConfirm('Prompt-Vorlage löschen (Tombstone)?'))) return;
   tombstone('promptTemplates', id);
   closePromptWorkspace();
   renderPrompts();
@@ -5634,8 +5682,8 @@ async function saveSettings() {
   }
 }
 
-function clearSettings() {
-  if (!confirm('Sync-Verbindung trennen? Lokale Daten bleiben erhalten.')) return;
+async function clearSettings() {
+  if (!(await showConfirm('Sync-Verbindung trennen? Lokale Daten bleiben erhalten.', { confirmLabel: 'Trennen' }))) return;
   syncConfig = null; localSha = null;
   localStorage.removeItem(FR_CONFIG_KEY);
   localStorage.removeItem(FR_SHA_KEY);
