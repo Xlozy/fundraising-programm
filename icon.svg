@@ -1,0 +1,8 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>App-Icon: wachsende Pflanze, weiss auf schwarz</title>
+<desc>Schwarzes, abgerundetes Quadrat als Hintergrund mit einem zentrierten weissen Spross-Symbol: Stiel mit einem akzentuierten unteren linken Blatt und einem groesseren oberen rechten Blatt.</desc>
+<rect x="0" y="0" width="512" height="512" rx="114" fill="#000000"/>
+<path d="M256 400 C248 322 262 220 256 150" stroke="#ffffff" stroke-width="22" fill="none" stroke-linecap="round"/>
+<path d="M256 300 C195 320 138 298 122 228 C182 202 252 238 256 300 Z" fill="#ffffff"/>
+<path d="M256 205 C312 192 362 150 386 104 C328 104 268 148 256 205 Z" fill="#ffffff"/>
+</svg>
