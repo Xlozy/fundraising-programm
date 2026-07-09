@@ -4394,9 +4394,14 @@ function renderTrgSplitList() {
 }
 
 // ─── Träger-Workspace (D-037): Übersicht/Bausteine/Projekte ───────────────────
-// Ersetzt trg-modal/trg-list-modal. D-016 gilt weiterhin: keine Löschfunktion
-// im UI (feste Seed-IDs) — der Übersicht-Reiter hat bewusst keinen
-// "Löschen"-Button, anders als Projekt/Stiftung.
+// Ersetzt trg-modal/trg-list-modal. D-016 (kein Löschen im UI) galt für die
+// drei fest verdrahteten Seed-Träger — seit createNewTraeger() können Nutzer
+// aber beliebige weitere Träger anlegen (z. B. zum Testen), die genauso
+// löschbar sein müssen wie jede andere Entität. D-069 ergänzt daher einen
+// "Löschen"-Button, analog zu Stiftung/Projekt/Antrag (einfaches Tombstone,
+// kein Kaskaden-Löschen — konsistent mit dem Rest der App), mit einem
+// Warnhinweis im Bestätigungsdialog, falls noch Projekte/Bausteine/Anträge
+// auf diesen Träger verweisen.
 
 function createNewTraeger() {
   const rec = {
@@ -4427,6 +4432,31 @@ function closeTrgWorkspace() {
   selectedTrgId = null;
   $('trg-workspace-empty').style.display = '';
   $('trg-workspace-content').style.display = 'none';
+}
+
+// D-069: Löschen (Tombstone) für Träger — siehe Kommentar oben beim
+// Träger-Workspace. Warnt im Bestätigungsdialog mit einer Anzahl, falls noch
+// Projekte/Bausteine/Anträge auf diesen Träger verweisen (kein Kaskaden-
+// Löschen, diese Records bleiben unverändert bestehen, nur die Referenz
+// zeigt danach auf einen gelöschten Träger — wie bei allen anderen
+// Löschfunktionen in dieser App).
+async function deleteTrgFromWorkspace(id) {
+  const linkedProjects = localData.projects.filter(p => !p.deleted && p.traegerId === id).length;
+  const linkedBlocks = localData.blocks.filter(b => !b.deleted && b.traegerId === id).length;
+  const linkedApps = localData.applications.filter(a => !a.deleted && a.traegerId === id).length;
+  const parts = [];
+  if (linkedProjects) parts.push(`${linkedProjects} Projekt${linkedProjects === 1 ? '' : 'e'}`);
+  if (linkedBlocks) parts.push(`${linkedBlocks} Baustein${linkedBlocks === 1 ? '' : 'e'}`);
+  if (linkedApps) parts.push(`${linkedApps} ${linkedApps === 1 ? 'Antrag' : 'Anträge'}`);
+  const warning = parts.length
+    ? ` Achtung: ${parts.join(', ')} verweisen noch auf diesen Träger und bleiben unverändert (aber verwaist) bestehen.`
+    : '';
+  if (!(await showConfirm('Träger löschen (Tombstone)?' + warning))) return;
+  tombstone('traeger', id);
+  closeTrgWorkspace();
+  renderTrgSplitList();
+  populateStaticDropdowns();
+  syncNow({ force: true });
 }
 
 function switchTrgTab(tab) {
@@ -4494,7 +4524,8 @@ function renderTrgOverviewTab(t) {
     <label for="trgw-bankverbindung">IBAN / Bankverbindung</label>
     <input type="text" id="trgw-bankverbindung" value="${escapeHtml(t.bankverbindung || '')}">
     <div class="modal-buttons">
-      <button class="btn-save" id="trgw-save">Speichern</button>
+      <button class="btn-delete" id="trgw-delete">Löschen</button>
+      <button class="btn-save"   id="trgw-save">Speichern</button>
     </div>
 
     <!-- D-057: Kontextpaket-Bau ist nicht mehr nur beim Antrag verfügbar —
@@ -4504,6 +4535,7 @@ function renderTrgOverviewTab(t) {
     </div>
   `;
   $('trgw-save').addEventListener('click', () => saveTrgOverview(t.id));
+  $('trgw-delete').addEventListener('click', () => deleteTrgFromWorkspace(t.id));
   $('trgw-pkg-btn').addEventListener('click', () => downloadContextPackage({ traegerId: t.id }));
 }
 
