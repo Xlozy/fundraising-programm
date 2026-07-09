@@ -168,6 +168,7 @@ main#main {
 .workspace-empty { color: var(--text-dim); font-size: 14px; text-align: center; padding: 60px 20px; }
 .workspace-header { margin-bottom: 16px; }
 .workspace-header h2 { font-size: 19px; margin-bottom: 4px; }
+.workspace-header-sub { font-size: 13px; color: var(--text-dim); line-height: 1.35; }
 .workspace-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
 .workspace-tab {
   padding: 9px 14px; background: none; border: none;
@@ -379,9 +380,10 @@ label {
   line-height: 1.45; margin-bottom: 16px;
 }
 .modal-hint a { color: var(--accent); text-decoration: none; }
-.confirm-message {
+.dialog-message {
   font-size: 15px; color: var(--text);
   line-height: 1.5; margin: 4px 0 4px;
+  white-space: pre-wrap;
 }
 .modal-section {
   margin-top: 22px; padding-top: 16px;
@@ -470,8 +472,36 @@ label {
 }
 .pkg-block-row:last-child { border-bottom: none; }
 .pkg-block-row.missing-row { color: var(--danger); }
-.pkg-block-check { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.pkg-block-check { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
 .pkg-block-variant { margin-left: auto; }
+.pkg-block-title { font-size: 14.5px; font-weight: 500; color: var(--text); line-height: 1.3; }
+
+/* D-072: eigenes Checkbox-Design statt nativer Browser-Checkbox (wirkte im
+   Antrag-Bausteine-Reiter unpassend "Safari-default", blau/weiss) — passend
+   zum sonstigen dunklen, abgerundeten UI. */
+.pkg-block-check input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 20px; height: 20px; flex-shrink: 0;
+  margin: 0;
+  border: 1.5px solid var(--text-dim);
+  border-radius: 50%;
+  background: var(--bg);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .12s ease, border-color .12s ease;
+}
+.pkg-block-check input[type="checkbox"]:hover { border-color: var(--accent); }
+.pkg-block-check input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.pkg-block-check input[type="checkbox"]:checked::after {
+  content: "✓";
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: #042c53;
+}
 .sub-add-form {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1025,10 +1055,25 @@ label {
 <div class="modal-back" id="confirm-modal">
   <div class="modal">
     <h2>Bestätigen</h2>
-    <p class="confirm-message" id="confirm-message"></p>
+    <p class="dialog-message" id="confirm-message"></p>
     <div class="modal-buttons">
       <button class="btn-cancel" id="confirm-cancel">Abbrechen</button>
       <button class="btn-delete" id="confirm-ok">Löschen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hinweis-Dialog (D-070): ersetzt das native, ebenso grelle alert() der
+     Plattform (Validierungsfehler, Fehlermeldungen, kurze Hinweise) durch
+     denselben Dialog-Stil wie #confirm-modal. Anders als beim
+     Bestätigungs-Dialog gibt es hier keine Gefahr eines Datenverlusts durch
+     versehentliches Schliessen — daher in ESCAPE_CLOSABLE_MODALS. -->
+<div class="modal-back" id="alert-modal">
+  <div class="modal">
+    <h2>Hinweis</h2>
+    <p class="dialog-message" id="alert-message"></p>
+    <div class="modal-buttons">
+      <button class="btn-save" id="alert-ok">OK</button>
     </div>
   </div>
 </div>
@@ -1232,6 +1277,17 @@ function showConfirm(message, opts = {}) {
     cancelBtn.addEventListener('click', onCancel);
     openModal('confirm-modal');
   });
+}
+
+// D-070: ersetzt das native, ebenso plattform-grelle alert() durch denselben
+// Dialog-Stil (#alert-modal). Anders als showConfirm() muss hier nichts
+// awaited werden — an keiner der bisherigen alert()-Aufrufstellen hing
+// Folgelogik von der Bestätigung ab (immer nur Validierungshinweis + return,
+// oder letzte Anweisung einer Funktion), daher reicht ein einfacher,
+// nicht-blockierender Aufruf als 1:1-Ersatz.
+function showAlert(message) {
+  $('alert-message').textContent = message;
+  openModal('alert-modal');
 }
 
 // D-052: einheitliches Status-Icon (ersetzt ✅/❌-Emoji) — kleiner Kreis-Badge
@@ -1754,8 +1810,8 @@ async function fetchRepoTree(cfg) {
 }
 
 async function exportRepoBackup(cfg, label) {
-  if (!cfg) { alert('Kein Repo konfiguriert.'); return; }
-  if (typeof JSZip === 'undefined') { alert('JSZip nicht geladen — Backup nicht verfügbar.'); return; }
+  if (!cfg) { showAlert('Kein Repo konfiguriert.'); return; }
+  if (typeof JSZip === 'undefined') { showAlert('JSZip nicht geladen — Backup nicht verfügbar.'); return; }
   try {
     const paths = await fetchRepoTree(cfg);
     const zip = new JSZip();
@@ -1770,7 +1826,7 @@ async function exportRepoBackup(cfg, label) {
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   } catch (err) {
-    alert('Backup fehlgeschlagen: ' + err.message);
+    showAlert('Backup fehlgeschlagen: ' + err.message);
   }
 }
 
@@ -1876,14 +1932,28 @@ function switchTab(tab) {
   refreshCurrentTab();
 }
 
+// D-070: refreshCurrentTab() läuft nach jedem Sync (Polling alle 60s,
+// visibilitychange, jedes force-Save) und rendert den offenen Workspace neu
+// aus localData — bislang unbedingt, wodurch ein Poll mitten im Eintippen
+// eines noch ungespeicherten Titels/Felds diesen mit dem zuletzt
+// gespeicherten Stand überschrieb (Bug-Report: Titel "verschwindet" beim
+// Neuanlegen). isEditingWithin() erkennt, ob der Nutzer gerade ein Feld
+// innerhalb des jeweiligen Workspace fokussiert hat, und überspringt in dem
+// Fall nur den Formular-Rebuild (die Listen links werden weiterhin immer
+// aktualisiert, dort gibt es keine Eingabefelder zu verlieren).
+function isEditingWithin(containerId) {
+  const el = $(containerId);
+  return !!(el && document.activeElement && document.activeElement !== document.body && el.contains(document.activeElement));
+}
+
 function refreshCurrentTab() {
-  if (currentTab === 'traeger')      { renderTrgSplitList(); if (selectedTrgId) selectTraeger(selectedTrgId); }
-  if (currentTab === 'foundations')  { renderFoundations(); if (selectedFndId) selectFoundation(selectedFndId); }
-  if (currentTab === 'projects')     { renderProjects(); if (selectedPrjId) selectProject(selectedPrjId); }
-  if (currentTab === 'applications') { renderApplicationsSplitList(); if (selectedAppId) selectApplication(selectedAppId); }
+  if (currentTab === 'traeger')      { renderTrgSplitList(); if (selectedTrgId && !isEditingWithin('trg-workspace-content')) selectTraeger(selectedTrgId); }
+  if (currentTab === 'foundations')  { renderFoundations(); if (selectedFndId && !isEditingWithin('fnd-workspace-content')) selectFoundation(selectedFndId); }
+  if (currentTab === 'projects')     { renderProjects(); if (selectedPrjId && !isEditingWithin('prj-workspace-content')) selectProject(selectedPrjId); }
+  if (currentTab === 'applications') { renderApplicationsSplitList(); if (selectedAppId && !isEditingWithin('app-workspace-content')) selectApplication(selectedAppId); }
   if (currentTab === 'pipeline')     renderPipeline();
-  if (currentTab === 'blocks')       { renderBlocks(); if (selectedBlkId) selectBlock(selectedBlkId); }
-  if (currentTab === 'prompts')      { renderPrompts(); if (selectedPtId) selectPrompt(selectedPtId); }
+  if (currentTab === 'blocks')       { renderBlocks(); if (selectedBlkId && !isEditingWithin('blk-workspace')) selectBlock(selectedBlkId); }
+  if (currentTab === 'prompts')      { renderPrompts(); if (selectedPtId && !isEditingWithin('prm-workspace')) selectPrompt(selectedPtId); }
   if (currentTab === 'analyse')      renderAnalyse();
 }
 
@@ -1902,7 +1972,15 @@ function populateTraegerSelects() {
     if (!el) return;
     const isFilter = id.includes('filter');
     const cur = el.value;
-    el.innerHTML = (isFilter ? '<option value="">Alle Träger</option>' : '<option value="">— Träger wählen —</option>') + opts;
+    // D-071: blk-traegerId ist jetzt eine echte, sinnvolle Leerauswahl
+    // (trägerübergreifend), kein Platzhalter mehr; blk-filter-traeger
+    // bekommt zusätzlich einen expliziten Filter nur für trägerübergreifende
+    // Bausteine.
+    let blankOpt;
+    if (id === 'blk-traegerId') blankOpt = '<option value="">— Trägerübergreifend —</option>';
+    else if (id === 'blk-filter-traeger') blankOpt = '<option value="">Alle Träger</option><option value="__global__">Nur trägerübergreifend</option>';
+    else blankOpt = isFilter ? '<option value="">Alle Träger</option>' : '<option value="">— Träger wählen —</option>';
+    el.innerHTML = blankOpt + opts;
     el.value = cur;
   });
 }
@@ -2166,7 +2244,7 @@ function saveFndOverview(id) {
   if (!f) return;
   const nameVoll = getV('fndw-nameVoll');
   const nameKurz = getV('fndw-nameKurz');
-  if (!nameVoll || !nameKurz) { alert('Name und Kürzel sind Pflichtfelder.'); return; }
+  if (!nameVoll || !nameKurz) { showAlert('Name und Kürzel sind Pflichtfelder.'); return; }
   const quotePct = parseFloat10(getV('fndw-quote'));
   f.nameVoll = nameVoll;
   f.nameKurz = nameKurz;
@@ -2291,7 +2369,7 @@ function renderFndProfileTab(f) {
 
 function addProfileRequirement(foundationId) {
   const blockType = getV('fndw-rb-blockType');
-  if (!blockType) { alert('Bausteintyp ist ein Pflichtfeld.'); return; }
+  if (!blockType) { showAlert('Bausteintyp ist ein Pflichtfeld.'); return; }
   const f = localData.foundations.find(x => x.id === foundationId);
   if (!f) return;
   let profile = getOrCreateProfile(f);
@@ -2387,7 +2465,7 @@ function renderFndPersonsSubList(foundationId) {
 
 function saveFndPerson(foundationId) {
   const name = getV('fndw-per-name');
-  if (!name) { alert('Name ist ein Pflichtfeld.'); return; }
+  if (!name) { showAlert('Name ist ein Pflichtfeld.'); return; }
   const p = {
     id: newId('per'), name,
     rolle: getV('fndw-per-rolle') || null,
@@ -2484,7 +2562,8 @@ function createNewProject(forceTraegerId) {
     kurzbeschreibung: null, gesamtbudgetChf: 0,
     zielgruppe: null, ergebnis: null,
     themen: [], format: [], geo: [],
-    blockIds: [], expenses: [], meilensteine: [], financingPlan: [],
+    blockIds: [], // D-071: nicht mehr verwendet (ersetzt durch automatische Kandidaten via candidateBlocksForProject), Feld bleibt für Altdaten-Kompatibilität bestehen
+    expenses: [], meilensteine: [], financingPlan: [],
     modified: nowIso(), deleted: false
   };
   upsertRecord('projects', rec);
@@ -2628,8 +2707,8 @@ function saveProjectOverview(id) {
   if (!p) return;
   const titel = getV('prjw-ov-titel');
   const traegerId = getV('prjw-ov-traegerId');
-  if (!titel) { alert('Titel ist ein Pflichtfeld.'); return; }
-  if (!traegerId) { alert('Bitte einen Träger wählen.'); return; }
+  if (!titel) { showAlert('Titel ist ein Pflichtfeld.'); return; }
+  if (!traegerId) { showAlert('Bitte einen Träger wählen.'); return; }
   p.titel = titel;
   p.traegerId = traegerId;
   p.status = getV('prjw-ov-status') || 'idee';
@@ -2676,7 +2755,7 @@ function renderMeilensteineSubList(p) {
 
 function saveMeilenstein(projectId) {
   const bezeichnung = getV('prjw-ms-bezeichnung');
-  if (!bezeichnung) { alert('Bezeichnung ist ein Pflichtfeld.'); return; }
+  if (!bezeichnung) { showAlert('Bezeichnung ist ein Pflichtfeld.'); return; }
   const p = localData.projects.find(x => x.id === projectId);
   if (!p) return;
   if (!Array.isArray(p.meilensteine)) p.meilensteine = [];
@@ -2699,16 +2778,17 @@ function deleteMeilenstein(projectId, msId) {
 
 // ── Bausteine (D-030) ──────────────────────────────────────────────────────
 
+// D-071: manuelles Verknüpfen (project.blockIds[]) entfällt — trägerweite und
+// trägerübergreifende Bausteine sind automatisch Kandidaten für jedes Projekt
+// des jeweiligen Trägers (candidateBlocksForProject()). Dieser Reiter zeigt
+// sie darum nur noch informativ/read-only an; die eigentliche Auswahl, was
+// tatsächlich in einen Antrag einfliesst, passiert bewusst separat im
+// Antrag-Bausteine-Reiter (blockArrangement).
 function renderProjectBlocksTab(p) {
   const specific = localData.blocks.filter(b => !b.deleted && b.projectId === p.id)
     .sort((a,b) => (a.titel||'').localeCompare(b.titel||'','de'));
-  const linked = (p.blockIds || [])
-    .map(id => findBlock(id))
-    .filter(b => b && !b.deleted && !b.projectId)
+  const automatic = candidateBlocksForProject(p).filter(b => b.projectId !== p.id)
     .sort((a,b) => (a.titel||'').localeCompare(b.titel||'','de'));
-  const linkable = localData.blocks.filter(b =>
-    !b.deleted && !b.projectId && b.traegerId === p.traegerId && !(p.blockIds||[]).includes(b.id)
-  ).sort((a,b) => (a.titel||'').localeCompare(b.titel||'','de'));
 
   const specificHtml = specific.length
     ? specific.map(b => `
@@ -2721,23 +2801,15 @@ function renderProjectBlocksTab(p) {
       </div>`).join('')
     : '<p style="font-size:13px;color:var(--text-dim)">Keine projektspezifischen Bausteine.</p>';
 
-  const linkedHtml = linked.length
-    ? linked.map(b => `
+  const automaticHtml = automatic.length
+    ? automatic.map(b => `
       <div class="sub-item">
         <div class="sub-item-main" data-edit="${escapeHtml(b.id)}">
           <div class="sub-item-name">${escapeHtml(b.titel)}</div>
-          <div class="sub-item-sub">${escapeHtml(BLOCKTYPE_LABEL[b.blockType] || b.blockType)}</div>
+          <div class="sub-item-sub">${escapeHtml(blockScopeLabel(b))}</div>
         </div>
-        <button class="sub-item-del" data-unlink="${escapeHtml(b.id)}" title="Verknüpfung lösen">×</button>
       </div>`).join('')
-    : '<p style="font-size:13px;color:var(--text-dim)">Keine Bausteine aus der Bibliothek verknüpft.</p>';
-
-  const linkableHtml = linkable.length
-    ? `<div style="display:flex;gap:8px;margin-top:8px">
-         <select id="prjw-blk-link-select"><option value="">— Baustein wählen —</option>${linkable.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.titel)}</option>`).join('')}</select>
-         <button type="button" class="sub-add-btn" id="prjw-blk-link-btn" style="width:auto;white-space:nowrap">+ Verknüpfen</button>
-       </div>`
-    : '<p style="font-size:12px;color:var(--text-dim);margin-top:8px">Keine weiteren trägerweiten Bausteine verfügbar.</p>';
+    : '<p style="font-size:13px;color:var(--text-dim)">Keine trägerweiten/trägerübergreifenden Bausteine vorhanden.</p>';
 
   $('prjw-panel-blocks').innerHTML = `
     <div class="modal-section-title" style="margin-top:0">Projektspezifisch</div>
@@ -2745,9 +2817,9 @@ function renderProjectBlocksTab(p) {
     <button type="button" class="sub-add-btn" id="prjw-blk-new-btn">+ Neuen projektspezifischen Baustein anlegen</button>
 
     <div class="modal-section">
-      <div class="modal-section-title">Aus der Bibliothek verknüpft</div>
-      <div>${linkedHtml}</div>
-      ${linkableHtml}
+      <div class="modal-section-title">Automatisch verfügbar (trägerweit &amp; trägerübergreifend)</div>
+      <div>${automaticHtml}</div>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:6px">Diese Bausteine stehen jedem Antrag dieses Projekts automatisch als Kandidat zur Verfügung — die tatsächliche Auswahl erfolgt separat im Antrag.</p>
     </div>
   `;
 
@@ -2757,33 +2829,7 @@ function renderProjectBlocksTab(p) {
   $('prjw-panel-blocks').querySelectorAll('[data-copy]').forEach(el =>
     el.addEventListener('click', () => copyBlockToLibrary(el.dataset.copy))
   );
-  $('prjw-panel-blocks').querySelectorAll('[data-unlink]').forEach(el =>
-    el.addEventListener('click', () => unlinkProjectBlock(p.id, el.dataset.unlink))
-  );
   $('prjw-blk-new-btn').addEventListener('click', () => goToBlock(createNewBlock({ traegerId: p.traegerId, projectId: p.id })));
-  const linkBtn = $('prjw-blk-link-btn');
-  if (linkBtn) linkBtn.addEventListener('click', () => {
-    const sel = $('prjw-blk-link-select');
-    if (sel.value) linkProjectBlock(p.id, sel.value);
-  });
-}
-
-function unlinkProjectBlock(projectId, blockId) {
-  const p = localData.projects.find(x => x.id === projectId);
-  if (!p) return;
-  p.blockIds = (p.blockIds || []).filter(id => id !== blockId);
-  p.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
-  renderProjectBlocksTab(p);
-  syncNow({ force: true });
-}
-
-function linkProjectBlock(projectId, blockId) {
-  const p = localData.projects.find(x => x.id === projectId);
-  if (!p) return;
-  p.blockIds = [...(p.blockIds || []), blockId];
-  p.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
-  renderProjectBlocksTab(p);
-  syncNow({ force: true });
 }
 
 // copyBlockToLibrary (D-030): dupliziert Metadaten UND die Varianten-Texte
@@ -2805,7 +2851,7 @@ async function copyBlockToLibrary(blockId) {
       newVariants.push({ ...v, sha: newSha, version: 1 });
     }
   } catch (e) {
-    alert('Kopieren abgebrochen — Variante konnte nicht kopiert werden: ' + e.message + '\nEs wurde kein neuer Baustein angelegt.');
+    showAlert('Kopieren abgebrochen — Variante konnte nicht kopiert werden: ' + e.message + '\nEs wurde kein neuer Baustein angelegt.');
     return;
   }
 
@@ -2928,7 +2974,7 @@ function renderProjectBudgetTab(p) {
 
 function saveExpenseItem(projectId) {
   const position = getV('prjw-exp-position');
-  if (!position) { alert('Position ist ein Pflichtfeld.'); return; }
+  if (!position) { showAlert('Position ist ein Pflichtfeld.'); return; }
   const p = localData.projects.find(x => x.id === projectId);
   if (!p) return;
   if (!Array.isArray(p.expenses)) p.expenses = [];
@@ -2952,7 +2998,7 @@ function deleteExpense(projectId, expId) {
 
 function saveFinancingItem(projectId) {
   const quelle = getV('prjw-fin-quelle');
-  if (!quelle) { alert('Quelle ist ein Pflichtfeld.'); return; }
+  if (!quelle) { showAlert('Quelle ist ein Pflichtfeld.'); return; }
   const p = localData.projects.find(x => x.id === projectId);
   if (!p) return;
   if (!Array.isArray(p.financingPlan)) p.financingPlan = [];
@@ -2983,9 +3029,10 @@ function renderProjectApplicationsTab(p) {
   const apps = localData.applications.filter(a => !a.deleted && a.projectId === p.id)
     .sort((a,b) => (b.einreichdatum||b.modified||'').localeCompare(a.einreichdatum||a.modified||''));
 
+  // D-071: Kandidaten (trägerübergreifend/-weit/projektspezifisch) statt der
+  // früheren manuellen blockIds[]-Verknüpfung.
   const projectBlockTypes = new Set(
-    (p.blockIds || []).map(bid => normBlockType(findBlock(bid)?.blockType)).filter(Boolean)
-      .concat(localData.blocks.filter(b => !b.deleted && b.projectId === p.id).map(b => normBlockType(b.blockType)))
+    candidateBlocksForProject(p).map(b => normBlockType(b.blockType)).filter(Boolean)
   );
 
   const rows = apps.map(a => {
@@ -3270,7 +3317,7 @@ function saveAppOverview(id) {
   const foundationId = getV('app-foundationId');
   const projectId    = getV('app-projectId');
   if (!traegerId || !foundationId || !projectId) {
-    alert('Träger, Stiftung und Projekt sind Pflichtfelder.'); return;
+    showAlert('Träger, Stiftung und Projekt sind Pflichtfelder.'); return;
   }
   const previousProjectId = a.projectId;
   a.traegerId = traegerId;
@@ -3330,11 +3377,9 @@ function renderAppProfileTab(a) {
   }
 
   const project = localData.projects.find(p => p.id === a.projectId);
+  // D-071: automatische Kandidaten statt manueller blockIds[]-Verknüpfung.
   const blockTypesVorhanden = new Set(
-    (project?.blockIds || [])
-      .map(bid => normBlockType(localData.blocks.find(b => !b.deleted && b.id === bid)?.blockType))
-      .filter(Boolean)
-      .concat((project ? localData.blocks.filter(b => !b.deleted && b.projectId === project.id) : []).map(b => normBlockType(b.blockType)))
+    candidateBlocksForProject(project).map(b => normBlockType(b.blockType)).filter(Boolean)
   );
 
   $('appw-panel-profile').innerHTML = profile.requiredBlocks.map(rb => {
@@ -3346,19 +3391,13 @@ function renderAppProfileTab(a) {
   }).join('');
 }
 
-// ── D-062: Antrag-Reiter "Bausteine" ─────────────────────────────────────────
-// Greift auf dieselben Bausteine zurück, die im verknüpften Projekt
-// (Projekte → Auswahl Projekt → Bausteine-Reiter) verfügbar sind — verknüpfte
-// Bibliotheks-Bausteine + projektspezifische. Die Reihenfolge/Auswahl
-// (a.blockArrangement) ist bewusst je Antrag eigenständig, da verschiedene
-// Anträge zum selben Projekt unterschiedlich zusammengestellt sein können.
-
-function candidateBlocksForProject(project) {
-  if (!project) return [];
-  const linked = (project.blockIds || []).map(id => findBlock(id)).filter(b => b && !b.deleted);
-  const specific = localData.blocks.filter(b => !b.deleted && b.projectId === project.id);
-  return [...linked, ...specific.filter(b => !linked.some(lb => lb.id === b.id))];
-}
+// ── D-062/D-071: Antrag-Reiter "Bausteine" ────────────────────────────────────
+// Greift auf candidateBlocksForProject() zurück (siehe oben bei
+// findBlock/blockScopeLabel) — trägerübergreifende + trägerweite +
+// projektspezifische Bausteine, automatisch, ohne manuelles Verknüpfen. Die
+// Reihenfolge/Auswahl (a.blockArrangement) ist bewusst je Antrag
+// eigenständig, da verschiedene Anträge zum selben Projekt unterschiedlich
+// zusammengestellt sein können.
 
 // Ergänzt a.blockArrangement um neu hinzugekommene Kandidaten (ans Ende, aktiv)
 // und entfernt Einträge zu gelöschten/nicht mehr verfügbaren Bausteinen —
@@ -3428,10 +3467,10 @@ function renderAppBlocksArrangeView(a, arrangement) {
     return `<div class="sub-item" data-block-id="${escapeHtml(b.id)}" style="align-items:center;flex-wrap:wrap">
       <label class="pkg-block-check" style="flex:1;min-width:160px">
         <input type="checkbox" class="appw-blk-include-cb" ${entry.included ? 'checked' : ''}>
-        <span>${escapeHtml(b.titel)} <span style="color:var(--text-dim)">· ${escapeHtml(BLOCKTYPE_LABEL[b.blockType] || b.blockType)}</span></span>
+        <span class="pkg-block-title">${escapeHtml(b.titel)} <span style="color:var(--text-dim);font-weight:400">· ${escapeHtml(BLOCKTYPE_LABEL[b.blockType] || b.blockType)}</span></span>
       </label>
       ${variantSelect}
-      <div style="display:flex;gap:4px">
+      <div style="display:flex;gap:4px;align-items:center">
         <button type="button" class="icon-btn appw-blk-up" title="Nach oben" ${i === 0 ? 'disabled' : ''}>↑</button>
         <button type="button" class="icon-btn appw-blk-down" title="Nach unten" ${i === arrangement.length - 1 ? 'disabled' : ''}>↓</button>
       </div>
@@ -3563,7 +3602,7 @@ function renderAppDocumentTab(a) {
 async function uploadFinalDocument(appId, file) {
   const a = localData.applications.find(x => x.id === appId);
   if (!a) return;
-  if (!syncConfig) { alert('Kein Sync konfiguriert — Dokument kann nicht hochgeladen werden.'); return; }
+  if (!syncConfig) { showAlert('Kein Sync konfiguriert — Dokument kann nicht hochgeladen werden.'); return; }
   $('appw-doc-status').className = 'modal-result';
   $('appw-doc-status').textContent = 'Lädt hoch…';
   try {
@@ -3587,11 +3626,11 @@ async function uploadFinalDocument(appId, file) {
 async function downloadFinalDocumentFile(appId) {
   const a = localData.applications.find(x => x.id === appId);
   if (!a || !a.finalDocument) return;
-  if (!syncConfig) { alert('Kein Sync konfiguriert — Dokument kann nicht geladen werden.'); return; }
+  if (!syncConfig) { showAlert('Kein Sync konfiguriert — Dokument kann nicht geladen werden.'); return; }
   try {
     const path = finalDocumentPath(appId, a.finalDocument.name);
     const { base64 } = await githubGetFileBinary(syncConfig, path);
-    if (!base64) { alert('Dokument im Repo nicht gefunden.'); return; }
+    if (!base64) { showAlert('Dokument im Repo nicht gefunden.'); return; }
     const blob = base64ToBlob(base64, a.finalDocument.mimeType);
     const url = URL.createObjectURL(blob);
     const el = document.createElement('a');
@@ -3599,7 +3638,7 @@ async function downloadFinalDocumentFile(appId) {
     document.body.appendChild(el); el.click(); el.remove();
     URL.revokeObjectURL(url);
   } catch (err) {
-    alert('Fehler beim Herunterladen: ' + err.message);
+    showAlert('Fehler beim Herunterladen: ' + err.message);
   }
 }
 
@@ -3658,6 +3697,38 @@ function removeFinancingPlanForApplication(applicationId, projectId) {
 function findBlock(id) { return localData.blocks.find(x => x.id === id); }
 function findVariant(block, key) { return (block.variants || []).find(v => v.key === key); }
 
+// D-071: Geltungsbereich eines Bausteins — traegerId ist seither optional
+// (leer = trägerübergreifend, für alle Träger nutzbar). projectId bleibt
+// wie zuvor optional (gesetzt = projektspezifisch, sonst trägerweit).
+// blockScopeLabel() liefert die einheitliche Anzeige-Beschriftung dafür,
+// überall dort verwendet, wo ein Baustein gelistet wird (Bibliothek,
+// Workspace-Titel).
+function blockScopeLabel(b) {
+  if (!b.traegerId) return 'Trägerübergreifend';
+  const trName = traegerName(b.traegerId);
+  if (!b.projectId) return trName;
+  const proj = localData.projects.find(p => p.id === b.projectId);
+  return `${trName} · ${proj ? proj.titel : 'unbekanntes Projekt'}`;
+}
+
+// Kandidaten-Bausteine für ein Projekt (Antrag-Bausteine-Reiter,
+// Kontextpaket-Bau): automatisch trägerübergreifende + trägerweite
+// Bausteine des zugehörigen Trägers + projektspezifische Bausteine dieses
+// Projekts — kein manuelles Verknüpfen mehr nötig (D-071, löst die
+// bisherige project.blockIds[]-Verknüpfung ab). Die eigentliche Auswahl,
+// welche Kandidaten tatsächlich in einen konkreten Antrag einfliessen,
+// bleibt bewusst ein separater Schritt (blockArrangement/included im
+// Antrag-Bausteine-Reiter) — hier werden nur die verfügbaren Kandidaten
+// ermittelt.
+function candidateBlocksForProject(project) {
+  if (!project) return [];
+  return localData.blocks.filter(b => !b.deleted && (
+    !b.traegerId ||
+    (!b.projectId && b.traegerId === project.traegerId) ||
+    b.projectId === project.id
+  ));
+}
+
 // D-035: blockType ist offenes Vokabular — der Typ-Filter startet mit ein
 // paar festen Vorschlägen (siehe HTML), ergänzt aber automatisch neue, frei
 // eingetippte Werte, damit auch danach gefiltert werden kann.
@@ -3676,12 +3747,14 @@ function renderBlocks() {
   populateBlkTypeFilter();
   const trFilter = getV('blk-filter-traeger');
   const tyFilter = getV('blk-filter-type');
-  // D-030: Bibliothek zeigt nur trägerweit wiederverwendbare Bausteine —
-  // projektspezifische Bausteine erscheinen ausschliesslich im jeweiligen
-  // Projekt-Workspace (Bausteine-Reiter); können aber trotzdem hier direkt
-  // ausgewählt/bearbeitet werden (z. B. über goToBlock()).
-  let list = localData.blocks.filter(b => !b.deleted && !b.projectId);
-  if (trFilter) list = list.filter(b => b.traegerId === trFilter);
+  // D-071: Bibliothek zeigt jetzt wirklich ALLE Bausteine (trägerübergreifend,
+  // trägerweit, projektspezifisch) — Erstellen und Bearbeiten laufen für
+  // alle drei ausschliesslich hier, die Karte zeigt den Geltungsbereich als
+  // Badge (blockScopeLabel()). Zuvor waren projektspezifische Bausteine hier
+  // unsichtbar, obwohl sie über dieselbe Maske entstanden.
+  let list = localData.blocks.filter(b => !b.deleted);
+  if (trFilter === '__global__') list = list.filter(b => !b.traegerId);
+  else if (trFilter) list = list.filter(b => b.traegerId === trFilter);
   if (tyFilter) list = list.filter(b => b.blockType === tyFilter);
   list.sort((a,b) => (a.titel||'').localeCompare(b.titel||'','de'));
 
@@ -3693,7 +3766,7 @@ function renderBlocks() {
       const savedCount = variants.filter(v => v.sha).length;
       return `<div class="record-card${b.id === selectedBlkId ? ' selected' : ''}" data-id="${escapeHtml(b.id)}" data-type="blk">
         <div class="card-title">${escapeHtml(b.titel)}</div>
-        <div class="card-sub">${escapeHtml(traegerName(b.traegerId))} · ${escapeHtml(BLOCKTYPE_LABEL[b.blockType] || b.blockType)}</div>
+        <div class="card-sub">${escapeHtml(blockScopeLabel(b))} · ${escapeHtml(BLOCKTYPE_LABEL[b.blockType] || b.blockType)}</div>
         <div class="card-meta">
           ${badge(b.source || 'prose')}
           <span style="font-size:12px;color:var(--text-dim)">${savedCount}/${variants.length} Varianten gespeichert</span>
@@ -3714,9 +3787,13 @@ function goToBlock(id) {
 }
 
 function createNewBlock(prefill) {
+  // D-071: ohne Kontext (Neuanlage direkt unter "Bausteine") bleibt
+  // traegerId leer -> trägerübergreifend, statt wie zuvor den ersten
+  // Träger zu raten. Aus Träger-/Projekt-Workspace wird weiterhin der
+  // jeweilige Kontext vorbelegt (prefill).
   const rec = {
     id: newId('blk'),
-    traegerId: prefill?.traegerId || (localData.traeger.find(t => !t.deleted)?.id || ''),
+    traegerId: prefill?.traegerId || '',
     titel: 'Neuer Baustein',
     blockType: 'sonstige',
     source: 'prose',
@@ -3754,22 +3831,57 @@ function closeBlockWorkspace() {
 // Feld-IDs (blk-titel, blk-variants-list, …) bleiben unverändert, damit
 // renderVariantsSubList()/saveVariantMeta()/renderUsedInProjects()/
 // openVariantEditor() unverändert weiterfunktionieren.
+// D-071: Geltungsbereich (Träger + optional Projekt) ist jetzt ein normales,
+// jederzeit änderbares Feldpaar direkt im Baustein-Formular — ein trägerweiter
+// Baustein wird projektspezifisch (und umgekehrt) einfach durch Ändern und
+// Speichern, ohne Duplikat/Kopie. Projekt-Dropdown zeigt nur Projekte des
+// gewählten Trägers und wird beim Trägerwechsel neu befüllt.
+function blkProjectOptionsHtml(traegerId, selectedProjectId) {
+  const opts = localData.projects.filter(p => !p.deleted && p.traegerId === traegerId)
+    .sort((a,b) => (a.titel||'').localeCompare(b.titel||'','de'))
+    .map(p => `<option value="${escapeHtml(p.id)}" ${p.id === selectedProjectId ? 'selected' : ''}>${escapeHtml(p.titel)}</option>`).join('');
+  return '<option value="">— Kein bestimmtes Projekt (trägerweit) —</option>' + opts;
+}
+
+function updateBlkScopePreview() {
+  const traegerId = getV('blk-traegerId');
+  const wrap = $('blk-project-wrap');
+  if (wrap) wrap.style.display = traegerId ? '' : 'none';
+  const label = $('blk-scope-label');
+  if (!label) return;
+  if (!traegerId) { label.textContent = 'Trägerübergreifend'; return; }
+  const projectId = getV('blk-projectId');
+  const proj = projectId ? localData.projects.find(p => p.id === projectId) : null;
+  label.textContent = proj ? `${traegerName(traegerId)} · ${proj.titel}` : traegerName(traegerId);
+}
+
+function onBlkTraegerChange() {
+  $('blk-projectId').innerHTML = blkProjectOptionsHtml(getV('blk-traegerId'), '');
+  updateBlkScopePreview();
+}
+
 function renderBlockWorkspace(b) {
   refreshVocabDatalists();
   const tOpts = localData.traeger.filter(t => !t.deleted)
     .map(t => `<option value="${escapeHtml(t.id)}" ${t.id === b.traegerId ? 'selected' : ''}>${escapeHtml(t.nameKurz)}</option>`).join('');
 
   $('blk-workspace').innerHTML = `
-    <div class="workspace-header"><h2>${b.projectId ? 'Projektspezifischer Baustein' : 'Baustein'}</h2></div>
+    <div class="workspace-header">
+      <h2>Baustein</h2>
+      <div class="workspace-header-sub" id="blk-scope-label">${escapeHtml(blockScopeLabel(b))}</div>
+    </div>
     <div class="workspace-panel active">
+      <label for="blk-titel">Titel *</label>
+      <input type="text" id="blk-titel" autocomplete="off" value="${escapeHtml(b.titel || '')}">
+
       <div class="field-row">
-        <div style="flex:2">
-          <label for="blk-titel">Titel *</label>
-          <input type="text" id="blk-titel" autocomplete="off" value="${escapeHtml(b.titel || '')}">
-        </div>
         <div>
-          <label for="blk-traegerId">Träger *</label>
-          <select id="blk-traegerId"><option value="">— Träger wählen —</option>${tOpts}</select>
+          <label for="blk-traegerId">Träger</label>
+          <select id="blk-traegerId"><option value="">— Trägerübergreifend —</option>${tOpts}</select>
+        </div>
+        <div id="blk-project-wrap" style="display:${b.traegerId ? '' : 'none'}">
+          <label for="blk-projectId">Projekt (optional)</label>
+          <select id="blk-projectId">${blkProjectOptionsHtml(b.traegerId, b.projectId)}</select>
         </div>
       </div>
       <div class="field-row">
@@ -3837,6 +3949,8 @@ function renderBlockWorkspace(b) {
   $('blk-save').addEventListener('click', () => saveBlk(b.id));
   $('blk-delete').addEventListener('click', () => deleteBlk(b.id));
   $('blk-download-btn').addEventListener('click', () => downloadBlock(b.id));
+  $('blk-traegerId').addEventListener('change', onBlkTraegerChange);
+  $('blk-projectId').addEventListener('change', updateBlkScopePreview);
   $('blk-source').addEventListener('change', toggleRenderRefWrap);
   $('blk-variant-toggle').addEventListener('click', () => $('blk-variant-form').classList.toggle('show'));
   $('bv-cancel').addEventListener('click', () => $('blk-variant-form').classList.remove('show'));
@@ -3869,7 +3983,7 @@ function renderVariantsSubList() {
 
 function saveVariantMeta() {
   const key = getV('bv-key');
-  if (currentVariants.some(v => v.key === key)) { alert('Diese Variante existiert bereits.'); return; }
+  if (currentVariants.some(v => v.key === key)) { showAlert('Diese Variante existiert bereits.'); return; }
   currentVariants.push({
     key,
     label: getV('bv-label') || VARIANT_KEY_LABEL[key] || key,
@@ -3885,25 +3999,44 @@ function saveVariantMeta() {
 function renderUsedInProjects(blockId) {
   if (!blockId) { $('blk-used-in').textContent = '— (erst nach dem Speichern sichtbar)'; return; }
   const b = findBlock(blockId);
-  // D-030: projektspezifisch (block.projectId) zählt genauso als "zugeordnet"
-  // wie über die Bibliothek verknüpft (project.blockIds[]).
-  const using = localData.projects.filter(p => !p.deleted &&
-    ((p.blockIds||[]).includes(blockId) || (b && p.id === b.projectId))
-  );
-  $('blk-used-in').textContent = using.length ? using.map(p => p.titel).join(', ') : 'Keinem Projekt zugeordnet.';
+  if (!b) { $('blk-used-in').textContent = '—'; return; }
+  // D-071: kein manuelles Verknüpfen mehr — der Geltungsbereich bestimmt
+  // automatisch die Kandidaten-Projekte (candidateBlocksForProject()), daher
+  // hier nur noch eine beschreibende Zusammenfassung statt einer expliziten Liste.
+  if (b.projectId) {
+    const proj = localData.projects.find(p => p.id === b.projectId && !p.deleted);
+    $('blk-used-in').textContent = proj ? `Projektspezifisch für „${proj.titel}“.` : 'Projektspezifisch (Projekt nicht mehr vorhanden).';
+  } else if (b.traegerId) {
+    $('blk-used-in').textContent = `Verfügbar für alle Projekte von ${traegerName(b.traegerId)}.`;
+  } else {
+    $('blk-used-in').textContent = 'Trägerübergreifend — verfügbar für alle Projekte.';
+  }
 }
 
 function saveBlk(id) {
   const b = findBlock(id);
   if (!b) return;
   const titel = getV('blk-titel');
-  const traegerId = getV('blk-traegerId');
-  if (!titel) { alert('Titel ist ein Pflichtfeld.'); return; }
-  if (!traegerId) { alert('Bitte einen Träger wählen.'); return; }
+  if (!titel) { showAlert('Titel ist ein Pflichtfeld.'); return; }
+
+  // D-071: Träger ist nicht mehr Pflicht (leer = trägerübergreifend). Ein
+  // gewähltes Projekt bestimmt den Träger immer eindeutig mit (verhindert
+  // widersprüchliche traegerId/projectId-Kombinationen) — die Träger-Auswahl
+  // dient in dem Fall nur noch der Projekt-Eingrenzung im Formular.
+  const projectId = getV('blk-projectId') || '';
+  const proj = projectId ? localData.projects.find(x => x.id === projectId) : null;
+  const traegerId = proj ? proj.traegerId : (getV('blk-traegerId') || '');
+
+  // Für den nachgelagerten Tab-Refresh (Träger-/Projekt-Reiter) merken wir
+  // uns den Geltungsbereich VOR dem Speichern — ein Wechsel des Bereichs
+  // (z. B. projektspezifisch -> trägerweit) muss beide Reiter aktualisieren.
+  const prevTraegerId = b.traegerId;
+  const prevProjectId = b.projectId;
 
   const source = getV('blk-source') || 'prose';
   b.titel = titel;
   b.traegerId = traegerId;
+  b.projectId = projectId;
   b.blockType = getV('blk-blockType') || 'sonstige';
   b.source = source;
   b.renderRef = source === 'template' ? (getV('blk-renderRef') || 'traeger') : null;
@@ -3913,10 +4046,17 @@ function saveBlk(id) {
   upsertRecord('blocks', b);
   renderBlocks();
   renderBlockWorkspace(b);
-  if (b.projectId && selectedPrjId === b.projectId && currentProjectTab === 'blocks') {
+
+  if (prevProjectId && selectedPrjId === prevProjectId && currentProjectTab === 'blocks') {
+    renderProjectBlocksTab(localData.projects.find(x => x.id === prevProjectId));
+  }
+  if (b.projectId && b.projectId !== prevProjectId && selectedPrjId === b.projectId && currentProjectTab === 'blocks') {
     renderProjectBlocksTab(localData.projects.find(x => x.id === b.projectId));
   }
-  if (!b.projectId && selectedTrgId === b.traegerId && currentTrgTab === 'blocks') {
+  if (prevTraegerId && selectedTrgId === prevTraegerId && currentTrgTab === 'blocks') {
+    renderTrgBlocksTab(localData.traeger.find(x => x.id === prevTraegerId));
+  }
+  if (b.traegerId && b.traegerId !== prevTraegerId && selectedTrgId === b.traegerId && currentTrgTab === 'blocks') {
     renderTrgBlocksTab(localData.traeger.find(x => x.id === b.traegerId));
   }
   showToast('Gespeichert');
@@ -3945,8 +4085,8 @@ async function downloadBlock(blockId) {
   const b = findBlock(blockId);
   if (!b) return;
   const variants = (b.variants || []).filter(v => v.sha);
-  if (!variants.length) { alert('Noch keine gespeicherten Varianten-Texte vorhanden.'); return; }
-  if (!syncConfig) { alert('Kein Sync konfiguriert — Varianten-Texte können nicht geladen werden.'); return; }
+  if (!variants.length) { showAlert('Noch keine gespeicherten Varianten-Texte vorhanden.'); return; }
+  if (!syncConfig) { showAlert('Kein Sync konfiguriert — Varianten-Texte können nicht geladen werden.'); return; }
   const lines = [
     `# ${b.titel}`, '',
     `**Typ:** ${BLOCKTYPE_LABEL[b.blockType] || b.blockType}`,
@@ -4032,7 +4172,7 @@ function applyVariantSaveResult(blockId, key, text, sha, version) {
 
 async function saveVariantText() {
   if (!bvEd) return;
-  if (!syncConfig) { alert('Kein Sync konfiguriert.'); return; }
+  if (!syncConfig) { showAlert('Kein Sync konfiguriert.'); return; }
   const text = getV('bved-text');
   const path = blockFilePath(bvEd.blockId, bvEd.key);
   const cfg = syncConfig;
@@ -4076,7 +4216,7 @@ async function resolveConflictTakeLocal() {
     bvConflict = null;
     syncNow({ force: true });
   } catch (err) {
-    alert('Erneuter Konflikt oder Fehler beim Speichern: ' + err.message + '\nBitte nochmals versuchen.');
+    showAlert('Erneuter Konflikt oder Fehler beim Speichern: ' + err.message + '\nBitte nochmals versuchen.');
   }
 }
 
@@ -4543,7 +4683,7 @@ function saveTrgOverview(id) {
   const t = localData.traeger.find(x => x.id === id);
   if (!t) return;
   const nameVoll = getV('trgw-nameVoll');
-  if (!nameVoll) { alert('Bitte einen Namen eingeben.'); return; }
+  if (!nameVoll) { showAlert('Bitte einen Namen eingeben.'); return; }
   t.nameVoll = nameVoll;
   t.nameKurz = getV('trgw-nameKurz') || nameVoll;
   t.rechtsform = getV('trgw-rechtsform') || null;
@@ -4565,12 +4705,10 @@ function saveTrgOverview(id) {
   syncNow({ force: true });
 }
 
-// ── Bausteine (trägerweit, projectId leer) ──────────────────────────────────
+// ── Bausteine (trägerweit + trägerübergreifend als Info — D-071) ───────────
 
-function renderTrgBlocksTab(t) {
-  const blocks = localData.blocks.filter(b => !b.deleted && b.traegerId === t.id && !b.projectId)
-    .sort((a,b) => (a.titel||'').localeCompare(b.titel||'','de'));
-  const rows = blocks.length
+function blkRows(blocks) {
+  return blocks.length
     ? blocks.map(b => `
       <div class="sub-item">
         <div class="sub-item-main" data-edit="${escapeHtml(b.id)}">
@@ -4578,11 +4716,21 @@ function renderTrgBlocksTab(t) {
           <div class="sub-item-sub">${escapeHtml(BLOCKTYPE_LABEL[b.blockType] || b.blockType)}</div>
         </div>
       </div>`).join('')
-    : '<p style="font-size:13px;color:var(--text-dim)">Keine trägerweiten Bausteine.</p>';
+    : '<p style="font-size:13px;color:var(--text-dim)">Keine.</p>';
+}
+
+function renderTrgBlocksTab(t) {
+  const global = localData.blocks.filter(b => !b.deleted && !b.traegerId)
+    .sort((a,b) => (a.titel||'').localeCompare(b.titel||'','de'));
+  const traegerweit = localData.blocks.filter(b => !b.deleted && b.traegerId === t.id && !b.projectId)
+    .sort((a,b) => (a.titel||'').localeCompare(b.titel||'','de'));
 
   $('trgw-panel-blocks').innerHTML = `
-    <div>${rows}</div>
-    <button type="button" class="sub-add-btn" id="trgw-blk-new-btn">+ Neuer Baustein</button>
+    <div class="modal-section-title">Trägerweit (${escapeHtml(t.nameKurz)})</div>
+    <div>${blkRows(traegerweit)}</div>
+    <button type="button" class="sub-add-btn" id="trgw-blk-new-btn">+ Neuer trägerweiter Baustein</button>
+    <div class="modal-section-title" style="margin-top:16px">Trägerübergreifend (automatisch verfügbar)</div>
+    <div>${blkRows(global)}</div>
   `;
   $('trgw-panel-blocks').querySelectorAll('[data-edit]').forEach(el =>
     el.addEventListener('click', () => goToBlock(el.dataset.edit))
@@ -4694,7 +4842,7 @@ function savePrompt(id) {
   const p = localData.promptTemplates.find(x => x.id === id);
   if (!p) return;
   const title = getV('prm-title');
-  if (!title) { alert('Titel ist ein Pflichtfeld.'); return; }
+  if (!title) { showAlert('Titel ist ein Pflichtfeld.'); return; }
   p.title = title;
   p.body = getV('prm-body') || '';
   p.modified = nowIso();
@@ -4738,24 +4886,23 @@ function proposeBlocksForPackage(ctx) {
     ? localData.requirementProfiles.find(p => !p.deleted && p.id === foundation.requirementProfileId)
     : null;
 
-  // Bausteine: aus dem Projekt (verknüpft + projektspezifisch, D-030), sonst
-  // — falls kein Projekt, aber ein Träger bekannt ist — ALLE Bausteine dieses
-  // Trägers (D-059: nicht mehr nur die "freien" trägerweiten, sondern auch
-  // alle projektspezifischen über sämtliche Projekte des Trägers — beim
-  // Aufruf direkt vom Träger soll wirklich alles verfügbar sein, nicht nur
-  // Bausteine ohne Projektbezug).
+  // D-071: Kandidaten kommen jetzt einheitlich über candidateBlocksForProject()
+  // (trägerübergreifend + trägerweit + projektspezifisch, kein manuelles
+  // Verknüpfen mehr). Ohne Projekt, aber mit bekanntem Träger, sollen weiterhin
+  // ALLE Bausteine dieses Trägers greifbar sein (trägerübergreifend +
+  // trägerweit + projektspezifisch über sämtliche Projekte des Trägers — D-059).
+  // Ganz ohne Träger-/Projektbezug bleiben nur die trägerübergreifenden übrig.
   let candidateBlocks;
   if (project) {
-    const linkedBlocks = (project.blockIds || []).map(bid => findBlock(bid)).filter(b => b && !b.deleted);
-    const specificBlocks = localData.blocks.filter(b => !b.deleted && b.projectId === project.id);
-    candidateBlocks = [...linkedBlocks, ...specificBlocks.filter(b => !linkedBlocks.some(lb => lb.id === b.id))];
+    candidateBlocks = candidateBlocksForProject(project);
   } else if (ctx.traegerId) {
-    const traegerWide = localData.blocks.filter(b => !b.deleted && !b.projectId && b.traegerId === ctx.traegerId);
-    const traegerProjectIds = new Set(localData.projects.filter(p => !p.deleted && p.traegerId === ctx.traegerId).map(p => p.id));
-    const projectSpecific = localData.blocks.filter(b => !b.deleted && b.projectId && traegerProjectIds.has(b.projectId));
-    candidateBlocks = [...traegerWide, ...projectSpecific];
+    // traegerId auf einem Baustein ist seit D-071 auch bei projektspezifischen
+    // Bausteinen konsistent mitgesetzt (saveBlk leitet ihn vom Projekt ab) —
+    // ein einfacher traegerId-Vergleich deckt daher automatisch trägerweite
+    // UND alle projektspezifischen Bausteine dieses Trägers mit ab.
+    candidateBlocks = localData.blocks.filter(b => !b.deleted && (!b.traegerId || b.traegerId === ctx.traegerId));
   } else {
-    candidateBlocks = [];
+    candidateBlocks = localData.blocks.filter(b => !b.deleted && !b.traegerId);
   }
 
   const rows = [];
@@ -4907,11 +5054,10 @@ function projectDetailLines(p) {
   if (exp.length) { out.push('- **Ausgabenposten:**'); exp.forEach(e => out.push(`  - ${e.position}: ${fmtChf(e.summeChf)}`)); }
   const fp = p.financingPlan || [];
   if (fp.length) { out.push('- **Finanzierungsplan:**'); fp.forEach(x => out.push(`  - ${x.quelle}: ${fmtChf(x.summeChf)} (${FP_STATUS[x.status] || x.status})`)); }
-  // D-059: Bausteine (alle Kandidaten — verknüpft + projektspezifisch —, nicht
-  // nur die im Kontextpaket-Modal tatsächlich angehakten) und Antragsübersicht.
-  const linkedBlocks = (p.blockIds || []).map(id => findBlock(id)).filter(b => b && !b.deleted);
-  const specificBlocks = (localData.blocks || []).filter(b => !b.deleted && b.projectId === p.id);
-  const allBlocks = [...linkedBlocks, ...specificBlocks.filter(b => !linkedBlocks.some(lb => lb.id === b.id))];
+  // D-059/D-071: Bausteine (alle automatischen Kandidaten — trägerübergreifend
+  // + trägerweit + projektspezifisch —, nicht nur die im Kontextpaket-Modal
+  // tatsächlich angehakten) und Antragsübersicht.
+  const allBlocks = candidateBlocksForProject(p);
   if (allBlocks.length) {
     out.push('- **Bausteine:**');
     allBlocks.forEach(b => out.push(`  - ${b.titel} (${BLOCKTYPE_LABEL[b.blockType] || b.blockType})`));
@@ -5032,11 +5178,11 @@ async function downloadContextPackage(ctx) {
       // Fallback ohne JSZip-Bibliothek (z.B. kein Netz): wenigstens KONTEXT.md
       // als einzelne Datei, statt komplett zu scheitern.
       downloadTextFile(pkg.folderName + '_KONTEXT.md', kontextMd);
-      alert('ZIP-Bibliothek nicht verfügbar — nur KONTEXT.md heruntergeladen (ohne Bausteine-Texte).');
+      showAlert('ZIP-Bibliothek nicht verfügbar — nur KONTEXT.md heruntergeladen (ohne Bausteine-Texte).');
     }
     finalizePkgExport(pkg);
   } catch (err) {
-    alert('Fehler beim Erstellen des Kontextpakets: ' + err.message);
+    showAlert('Fehler beim Erstellen des Kontextpakets: ' + err.message);
   }
 }
 
@@ -5275,10 +5421,11 @@ function resolveBlockImportRow(row) {
   const errors = [];
   const titel = row.titel || '';
   if (!titel) errors.push('titel fehlt');
+  // D-071: traeger ist beim Import nicht mehr Pflicht — leer/fehlend bedeutet
+  // trägerübergreifend (z. B. ein CV-Baustein, der für alle Träger gilt).
   const traegerName = row.traeger || row.traegerName || '';
   let traeger = null;
-  if (!traegerName) errors.push('traeger fehlt');
-  else {
+  if (traegerName) {
     traeger = findTraegerByNameOrKurz(traegerName);
     if (!traeger) errors.push(`Träger "${traegerName}" nicht gefunden`);
   }
@@ -5287,8 +5434,9 @@ function resolveBlockImportRow(row) {
     project = findProjectByTitel(row.projekt);
     if (!project) errors.push(`Projekt "${row.projekt}" nicht gefunden`);
   }
-  const existing = traeger ? localData.blocks.find(b => !b.deleted && b.traegerId === traeger.id &&
-    normStr(b.titel) === normStr(titel) && (project ? b.projectId === project.id : !b.projectId)) : null;
+  const existing = localData.blocks.find(b => !b.deleted &&
+    (traeger ? b.traegerId === traeger.id : !b.traegerId) &&
+    normStr(b.titel) === normStr(titel) && (project ? b.projectId === project.id : !b.projectId));
   const variantsIn = Array.isArray(row.varianten) ? row.varianten : [];
   const variantsToWrite = [];
   for (const v of variantsIn) {
@@ -5298,7 +5446,7 @@ function resolveBlockImportRow(row) {
   }
   const fields = {
     titel: titel || existing?.titel || '',
-    traegerId: traeger ? traeger.id : existing?.traegerId,
+    traegerId: traeger ? traeger.id : (existing?.traegerId || ''),
     projectId: project ? project.id : (existing?.projectId ?? null),
     blockType: row.blockType || existing?.blockType || 'sonstige',
     source: existing?.source || 'prose',
@@ -5495,7 +5643,7 @@ function openGearModal() {
 // Fix), nur noch „Abbrechen" schliesst diese. Escape respektiert das.
 const ESCAPE_CLOSABLE_MODALS = new Set([
   'gear-modal', 'settings-modal', 'diag-modal',
-  'pssg-modal', 'import-modal'
+  'pssg-modal', 'import-modal', 'alert-modal'
 ]);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
@@ -5575,7 +5723,7 @@ function bindEvents() {
   $('sync-btn').addEventListener('click', () => {
     if (!syncConfig) { openGearModal(); return; }
     if ($('sync-btn').classList.contains('error') && window._lastSyncError) {
-      alert('Sync-Fehler:\n' + window._lastSyncError); return;
+      showAlert('Sync-Fehler:\n' + window._lastSyncError); return;
     }
     syncNow({ force: true });
   });
@@ -5595,6 +5743,9 @@ function bindEvents() {
   $('imp-preview-btn').addEventListener('click', previewImport);
   $('imp-commit-btn').addEventListener('click', commitImport);
   $('imp-cancel').addEventListener('click', () => closeModal('import-modal'));
+
+  // Hinweis-Dialog (D-070)
+  $('alert-ok').addEventListener('click', () => closeModal('alert-modal'));
 
   // Settings-Modal
   $('cfg-cancel').addEventListener('click', () => closeModal('settings-modal'));
