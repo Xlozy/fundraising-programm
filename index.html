@@ -2238,11 +2238,10 @@ function renderFoundations() {
   if (fristFilter === 'ueberfallig') list = list.filter(f => { const d = daysUntil(nextFrist(f)?.datum); return d !== null && d < 0; });
   if (fristFilter === 'keine')       list = list.filter(f => !nextFrist(f));
 
-  list.sort((a,b) => {
-    const da = nextFrist(a)?.datum ? new Date(nextFrist(a).datum) : new Date('9999');
-    const db = nextFrist(b)?.datum ? new Date(nextFrist(b).datum) : new Date('9999');
-    return da - db;
-  });
+  // D-088: alphabetisch statt nach Frist-Datum, für Übersichtlichkeit
+  // (Frist-Dringlichkeit bleibt über Filter + Farb-Badge auf der Karte
+  // sichtbar, siehe fristFilter oben und die Karten-Anzeige unten).
+  list.sort((a,b) => (a.nameVoll || a.nameKurz || '').localeCompare(b.nameVoll || b.nameKurz || '', 'de'));
 
   if (list.length === 0) {
     $('fnd-list').innerHTML = '<div class="empty"><strong>Keine Stiftungen</strong>Neue Stiftung über + hinzufügen.</div>';
@@ -3686,11 +3685,12 @@ function renderApplicationsSplitList() {
     projectTitle(a.projectId).toLowerCase().includes(searchTerm)
   );
 
-  list.sort((x,y) => {
-    const vx = x.entscheidEingegangen || x.entscheidErwartet || x.einreichdatum || x.modified || '';
-    const vy = y.entscheidEingegangen || y.entscheidErwartet || y.einreichdatum || y.modified || '';
-    return vy.localeCompare(vx);
-  });
+  // D-088: alphabetisch nach Stiftung (Karten-Titel) statt nach Datum, für
+  // Übersichtlichkeit; bei gleicher Stiftung zusätzlich nach Projekt.
+  list.sort((x,y) =>
+    foundationFullName(x.foundationId).localeCompare(foundationFullName(y.foundationId), 'de')
+    || projectTitle(x.projectId).localeCompare(projectTitle(y.projectId), 'de')
+  );
 
   if (list.length === 0) {
     $('app-list').innerHTML = '<div class="empty"><strong>Keine Anträge</strong>Über + hier anlegen, oder direkt im Projekt-Workspace unter „Anträge".</div>';
