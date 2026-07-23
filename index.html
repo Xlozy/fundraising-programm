@@ -131,6 +131,19 @@ body {
 .sidebar-item.active { background: var(--surface-2); color: var(--accent); font-weight: 600; }
 .sidebar-icon { width: 18px; height: 18px; flex-shrink: 0; }
 
+/* D-077 (Phase H): Sidebar einklappbar — schmale Icon-Spalte für geteilten
+   Bildschirm (Browser links, App rechts). Zustand in localStorage. */
+.sidebar { transition: width 0.15s ease; }
+.sidebar.collapsed { width: 56px; }
+.sidebar.collapsed .sidebar-brand,
+.sidebar.collapsed .sidebar-group-title,
+.sidebar.collapsed .sidebar-label { display: none; }
+.sidebar.collapsed .sidebar-item { justify-content: center; padding: 9px 0; }
+.sidebar.collapsed .sidebar-footer { flex-direction: column; align-items: stretch; }
+.sidebar.collapsed .sync-status { justify-content: center; padding: 8px 0; }
+#sidebar-toggle svg { transition: transform 0.15s ease; }
+.sidebar.collapsed #sidebar-toggle svg { transform: rotate(180deg); }
+
 main#main {
   flex: 1;
   min-width: 0;
@@ -158,7 +171,7 @@ main#main {
   display: flex;
   gap: 20px;
 }
-.split-list { width: 300px; flex-shrink: 0; overflow-y: auto; height: 100%; scrollbar-gutter: stable; }
+.split-list { width: 300px; flex-shrink: 0; overflow-y: auto; height: 100%; scrollbar-gutter: stable; transition: width 0.15s ease, opacity 0.15s ease; }
 .split-list-header { display: flex; gap: 8px; margin-bottom: 10px; }
 .split-search { flex: 1; }
 .split-add-btn {
@@ -168,6 +181,27 @@ main#main {
   font-size: 20px; font-weight: 300; cursor: pointer;
   font-family: inherit; line-height: 1;
 }
+
+/* D-080 (Phase H, Folgewunsch): Listen-Spalte der Splitviews (Träger/
+   Stiftungen/Projekte/Anträge/Bausteine/Prompts) einklappbar — analog zur
+   Sidebar (D-077), damit bei geteiltem Bildschirm mehr Platz fürs Detail-
+   Panel bleibt. Toggle-Button lebt als Geschwister von .split-list/.workspace
+   direkt in .splitview, NICHT innerhalb von .workspace — blk-workspace/
+   prm-workspace werden per innerHTML komplett neu aufgebaut (siehe
+   renderBlockWorkspace/renderPromptWorkspace) und würden ihn sonst löschen. */
+.splitview.list-collapsed .split-list {
+  width: 0; min-width: 0; opacity: 0; overflow: hidden; pointer-events: none;
+}
+.split-list-toggle {
+  flex-shrink: 0; align-self: flex-start;
+  width: 22px; height: 28px; margin-top: 1px;
+  border-radius: 6px; border: 1px solid var(--border); background: none;
+  color: var(--text-dim); cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.split-list-toggle:hover { color: var(--text); background: var(--surface-2); }
+.split-list-toggle svg { width: 14px; height: 14px; transition: transform 0.15s ease; }
+.splitview.list-collapsed .split-list-toggle svg { transform: rotate(180deg); }
 .workspace { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; height: 100%; scrollbar-gutter: stable; padding-right: 2px; }
 .workspace-empty { color: var(--text-dim); font-size: 14px; text-align: center; padding: 60px 20px; }
 .workspace-header { margin-bottom: 16px; }
@@ -457,6 +491,14 @@ label {
   flex-shrink: 0;
 }
 .sub-item-del:active { color: var(--danger); }
+.sub-item-edit {
+  background: none; border: none;
+  color: var(--text-dim); font-size: 14px;
+  cursor: pointer; padding: 0 4px;
+  font-family: inherit; line-height: 1;
+  flex-shrink: 0;
+}
+.sub-item-edit:hover { color: var(--accent); }
 .sub-add-btn {
   display: block; width: 100%;
   padding: 8px 12px; margin-top: 6px;
@@ -627,33 +669,35 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 <datalist id="dl-vocab-format"></datalist>
 <datalist id="dl-vocab-geo"></datalist>
 <datalist id="dl-vocab-blockType"></datalist>
+<datalist id="dl-vocab-mehrwerte"></datalist>
 
 <div class="app-shell">
 <nav class="sidebar">
   <div class="sidebar-brand">Fundraising</div>
   <div class="sidebar-group">
-    <button class="sidebar-item active" id="tab-traeger"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16"/><path d="M4 21h16"/><path d="M14 21v-4h4v4"/><path d="M8 8h.01M8 12h.01M8 16h.01M11 8h.01M11 12h.01M11 16h.01"/></svg>Träger</button>
-    <button class="sidebar-item" id="tab-foundations"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8h18z"/><path d="M4 21v-9M20 21v-9M9 21v-6M15 21v-6"/><path d="M3 21h18"/></svg>Stiftungen</button>
-    <button class="sidebar-item" id="tab-projects"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M9 12h6M9 16h4"/></svg>Projekte</button>
-    <button class="sidebar-item" id="tab-applications"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M6 3h8l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 13h6M9 17h6"/></svg>Anträge</button>
-    <button class="sidebar-item" id="tab-pipeline"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><rect x="5" y="12" width="3" height="6" rx="0.5"/><rect x="11" y="8" width="3" height="10" rx="0.5"/><rect x="17" y="4" width="3" height="14" rx="0.5"/></svg>Pipeline</button>
+    <button class="sidebar-item active" id="tab-traeger" title="Träger"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16"/><path d="M4 21h16"/><path d="M14 21v-4h4v4"/><path d="M8 8h.01M8 12h.01M8 16h.01M11 8h.01M11 12h.01M11 16h.01"/></svg><span class="sidebar-label">Träger</span></button>
+    <button class="sidebar-item" id="tab-foundations" title="Stiftungen"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8h18z"/><path d="M4 21v-9M20 21v-9M9 21v-6M15 21v-6"/><path d="M3 21h18"/></svg><span class="sidebar-label">Stiftungen</span></button>
+    <button class="sidebar-item" id="tab-projects" title="Projekte"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M9 12h6M9 16h4"/></svg><span class="sidebar-label">Projekte</span></button>
+    <button class="sidebar-item" id="tab-applications" title="Anträge"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M6 3h8l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 13h6M9 17h6"/></svg><span class="sidebar-label">Anträge</span></button>
+    <button class="sidebar-item" id="tab-pipeline" title="Pipeline"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><rect x="5" y="12" width="3" height="6" rx="0.5"/><rect x="11" y="8" width="3" height="10" rx="0.5"/><rect x="17" y="4" width="3" height="14" rx="0.5"/></svg><span class="sidebar-label">Pipeline</span></button>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-group-title">Bibliothek</div>
-    <button class="sidebar-item" id="tab-blocks"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a1 1 0 0 1 1-1h4a2 2 0 0 1 2 2v15"/><path d="M11 6a2 2 0 0 1 2-2h4a1 1 0 0 1 1 1v14.5"/><path d="M4 19.5A1.5 1.5 0 0 1 5.5 18H11M18 19.5a1.5 1.5 0 0 0-1.5-1.5H11"/></svg>Bausteine</button>
+    <button class="sidebar-item" id="tab-blocks" title="Bausteine"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a1 1 0 0 1 1-1h4a2 2 0 0 1 2 2v15"/><path d="M11 6a2 2 0 0 1 2-2h4a1 1 0 0 1 1 1v14.5"/><path d="M4 19.5A1.5 1.5 0 0 1 5.5 18H11M18 19.5a1.5 1.5 0 0 0-1.5-1.5H11"/></svg><span class="sidebar-label">Bausteine</span></button>
     <!-- D-061: Prompt-Vorlagen aus dem Zahnrad-Menü hierher verschoben — als
          einfache, jederzeit sichtbare Freitext-Referenz neben den Bausteinen,
          nicht mehr in den Kontextpaket-Fluss eingebunden (siehe D-060). -->
-    <button class="sidebar-item" id="tab-prompts"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>Prompts</button>
+    <button class="sidebar-item" id="tab-prompts" title="Prompts"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/></svg><span class="sidebar-label">Prompts</span></button>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-group-title">Analyse</div>
-    <button class="sidebar-item" id="tab-analyse"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19h18"/><path d="M4 15l5-5 4 4 6-7"/></svg>Analyse</button>
+    <button class="sidebar-item" id="tab-analyse" title="Analyse"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19h18"/><path d="M4 15l5-5 4 4 6-7"/></svg><span class="sidebar-label">Analyse</span></button>
   </div>
 
   <div class="sidebar-footer">
-    <button class="sync-status off" id="sync-btn" title="Sync nicht eingerichtet"><span class="dot"></span>Sync</button>
+    <button class="sync-status off" id="sync-btn" title="Sync nicht eingerichtet"><span class="dot"></span><span class="sidebar-label">Sync</span></button>
     <button class="icon-btn" id="settings-btn" title="Menü"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button class="icon-btn" id="sidebar-toggle" title="Sidebar ein-/ausklappen"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
   </div>
 </nav>
 
@@ -667,6 +711,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="trg-split-list"></div>
       </div>
+      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="trg-workspace">
         <div class="workspace-empty" id="trg-workspace-empty">Wähle einen Träger aus der Liste, oder lege einen neuen an.</div>
         <div id="trg-workspace-content" style="display:none">
@@ -708,6 +753,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="fnd-list"></div>
       </div>
+      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="fnd-workspace">
         <div class="workspace-empty" id="fnd-workspace-empty">Wähle eine Stiftung aus der Liste, oder lege eine neue an.</div>
         <div id="fnd-workspace-content" style="display:none">
@@ -750,6 +796,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="prj-list"></div>
       </div>
+      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="prj-workspace">
         <div class="workspace-empty" id="prj-workspace-empty">Wähle ein Projekt aus der Liste, oder lege ein neues an.</div>
         <div id="prj-workspace-content" style="display:none">
@@ -794,6 +841,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="app-list"></div>
       </div>
+      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="app-workspace">
         <div class="workspace-empty" id="app-workspace-empty">Wähle einen Antrag aus der Liste, oder lege einen neuen an.</div>
         <div id="app-workspace-content" style="display:none">
@@ -856,6 +904,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="blk-list"></div>
       </div>
+      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="blk-workspace">
         <div class="workspace-empty">Baustein aus der Liste wählen oder über + einen neuen anlegen.</div>
       </div>
@@ -872,6 +921,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="prm-list"></div>
       </div>
+      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="prm-workspace">
         <div class="workspace-empty">Prompt-Vorlage aus der Liste wählen oder über + eine neue anlegen.</div>
       </div>
@@ -1108,6 +1158,8 @@ const FR_DATA_KEY      = 'fr_data';         // D-013
 const FR_SHA_KEY        = 'fr_sha';          // D-013
 const FR_SHA_SHARED_KEY = 'fr_shaShared';    // D-026, Legacy — nur für Migration (siehe D-029)
 const FR_SHAS_KEY       = 'fr_shas';         // D-028, Legacy — nur für Migration (siehe D-029)
+const FR_SIDEBAR_COLLAPSED_KEY = 'fr_sidebarCollapsed'; // D-077
+const FR_LIST_COLLAPSED_KEY = 'fr_listCollapsed'; // D-080 — gemeinsam für alle 6 Splitviews
 const POLL_MS       = 60_000;            // D-014
 
 const TOP_LEVEL_ARRAYS = [
@@ -1121,7 +1173,7 @@ const TOP_LEVEL_ARRAYS = [
 // (Button unten) statt über eine Routing-Struktur.
 
 const EMPTY_DATA = () => ({
-  schemaVersion: 4,
+  schemaVersion: 5,
   traeger: [], foundations: [], projects: [], applications: [],
   blocks: [], persons: [], requirementProfiles: [], promptTemplates: [],
   modified: nowIso()
@@ -1131,10 +1183,14 @@ const EMPTY_DATA = () => ({
 // gelöscht (Ausnahme: eigenleistungChf/foerderbedarfChf werden ab hier nicht
 // mehr gelesen/geschrieben, bleiben aber als Rohwert stehen — D-033; `maxWords`
 // wird nach `hinweis` übernommen und dann entfernt — D-041, einzige echte
-// Feld-Löschung dieser Migration). No-Op, falls schemaVersion bereits 4.
+// Feld-Löschung dieser Migration). Läuft additiv weiter zu v4→v5 (D-081)
+// weiter unten in derselben Funktion — beide Stufen laufen nacheinander,
+// damit auch ein noch nicht migrierter v3-Datensatz in einem Rutsch auf v5
+// landet. No-Op pro Stufe, falls schemaVersion bereits erreicht.
 function migrateDataSchema(data) {
-  if (!data || data.schemaVersion >= 4) return data;
+  if (!data) return data;
 
+  if (data.schemaVersion < 4) {
   for (const p of data.projects || []) {
     if (!Array.isArray(p.expenses)) {
       p.expenses = [];
@@ -1178,6 +1234,25 @@ function migrateDataSchema(data) {
   }
 
   data.schemaVersion = 4;
+  }
+
+  // D-081: additive Schema-Migration v4 → v5 (Phase I). `naechsteFrist`
+  // (Skalar-Datum) bleibt als Altfeld unangetastet stehen (nichts wird
+  // gelöscht) — sein Wert wird einmalig nach `fristen[0]` übernommen, da
+  // mehrere Förderstellen mehrere Eingabetermine pro Jahr haben (siehe
+  // TASKS.md Phase I). Alle übrigen neuen Felder sind rein additiv/optional
+  // und brauchen keine Migration (fehlen einfach, UI behandelt das wie leer).
+  if (data.schemaVersion < 5) {
+    for (const f of data.foundations || []) {
+      if (!Array.isArray(f.fristen)) {
+        f.fristen = f.naechsteFrist
+          ? [{ id: newId('frist'), datum: f.naechsteFrist, bezeichnung: '', wiederkehrend: false }]
+          : [];
+      }
+    }
+    data.schemaVersion = 5;
+  }
+
   data.modified = nowIso();
   return data;
 }
@@ -1200,6 +1275,9 @@ const APPLICATION_STATUS = {
 };
 const FP_STATUS = { offen:'Offen', beantragt:'Beantragt', gesichert:'Gesichert', zugesagt:'Zugesagt', abgesagt:'Abgesagt' };
 const FRIST_TYP_LABEL = { laufend: 'Laufend', stichtag: 'Stichtag', sitzungen: 'Sitzungen' };
+const MEHRFACHFOERDERUNG_LABEL = { // D-081
+  erlaubt: 'Erlaubt', meldepflichtig: 'Meldepflichtig', ausgeschlossen: 'Ausgeschlossen', unbekannt: 'Unbekannt'
+};
 
 const BLOCKTYPE_LABEL = {
   cv:'CV', traegerschaft:'Trägerschaft', methodik:'Methodik', wirkungslogik:'Wirkungslogik',
@@ -1246,6 +1324,41 @@ let bvConflict        = null; // { blockId, key, localText, remoteText, remoteSh
 const $ = id => document.getElementById(id);
 const getV = id => ($(id) ? $(id).value.trim() : '');
 const setV = (id, v) => { if ($(id)) $(id).value = v ?? ''; };
+
+function debounce(fn, ms) {
+  let t = null;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+// D-079 (Phase H): generisches Auto-Save für die "Übersicht"-Formulare (löst
+// den expliziten Speichern-Button ab, siehe DECISIONS.md). Text/Zahl/Datum-
+// Felder + Textareas debounced (~800ms), Select/Checkbox sofort. Felder
+// innerhalb eines .sub-add-form (z. B. "+ Meilenstein hinzufügen") lösen
+// bewusst KEIN Auto-Save des Übersichts-Formulars aus — die haben ihren
+// eigenen "Hinzufügen"-Button. Pflichtfeld-Validierung schlägt beim
+// Auto-Save still fehl (kein Alert-Popup mitten im Tippen) — der jeweilige
+// saveFn kümmert sich selbst darum (return ohne showAlert).
+function wireAutoSave(containerId, saveFn) {
+  const container = $(containerId);
+  if (!container) return;
+  const debouncedSave = debounce(saveFn, 800);
+  container.addEventListener('input', (e) => {
+    if (e.target.closest('.sub-add-form, .modal-section')) return;
+    const t = e.target;
+    if (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type !== 'checkbox')) debouncedSave();
+  });
+  container.addEventListener('change', (e) => {
+    if (e.target.closest('.sub-add-form, .modal-section')) return;
+    const t = e.target;
+    if (t.tagName === 'SELECT' || (t.tagName === 'INPUT' && (t.type === 'checkbox' || t.type === 'date'))) saveFn();
+  });
+  container.addEventListener('keydown', (e) => {
+    if (e.target.classList.contains('tag-input-field') && (e.key === 'Enter' || e.key === ',')) debouncedSave();
+  });
+  container.addEventListener('click', (e) => {
+    if (e.target.classList.contains('tag-chip-x')) debouncedSave();
+  });
+}
 
 function nowIso() { return new Date().toISOString(); }
 
@@ -1479,13 +1592,14 @@ function vocabSuggestions(field) {
       ...localData.foundations.flatMap(f => f.foerderbereiche || [])
     ]),
     geo: new Set(localData.projects.flatMap(p => p.geo || [])),
-    blockType: new Set(localData.blocks.map(b => b.blockType).filter(Boolean))
+    blockType: new Set(localData.blocks.map(b => b.blockType).filter(Boolean)),
+    mehrwerte: new Set(localData.foundations.flatMap(f => f.erwarteteMehrwerte || [])) // D-081
   };
   return Array.from(sets[field] || []).filter(Boolean).sort((a,b) => a.localeCompare(b,'de'));
 }
 
 function refreshVocabDatalists() {
-  ['themen','format','geo','blockType'].forEach(field => {
+  ['themen','format','geo','blockType','mehrwerte'].forEach(field => {
     const el = $('dl-vocab-' + field);
     if (el) el.innerHTML = vocabSuggestions(field).map(v => `<option value="${escapeHtml(v)}">`).join('');
   });
@@ -1543,9 +1657,9 @@ function migrateSyncConfig(raw) {
     syncConfig = migrateSyncConfig(rawCfg);
 
     const stored = JSON.parse(localStorage.getItem(FR_DATA_KEY) || 'null');
-    if (stored && stored.schemaVersion === 4) {
+    if (stored && stored.schemaVersion === 5) {
       localData = stored;
-    } else if (stored && stored.schemaVersion === 3) {
+    } else if (stored && (stored.schemaVersion === 3 || stored.schemaVersion === 4)) {
       localData = migrateDataSchema(stored);
       saveLocalData();
     } else if (stored) {
@@ -1894,7 +2008,7 @@ async function syncNow({ force = false } = {}) {
 
       const { data: rawRemote, sha: remoteSha } = await githubGet(syncConfig);
       const remote = migrateDataSchema(rawRemote);
-      const payload = { schemaVersion: 4, modified: nowIso() };
+      const payload = { schemaVersion: 5, modified: nowIso() };
       for (const key of TOP_LEVEL_ARRAYS) {
         payload[key] = mergeRecords(localData[key] || [], remote[key] || []);
       }
@@ -2041,13 +2155,13 @@ function renderFoundations() {
     (f.nameKurz || '').toLowerCase().includes(searchTerm)
   );
   if (statusFilter) list = list.filter(f => f.status === statusFilter);
-  if (fristFilter === 'bald')       list = list.filter(f => { const d = daysUntil(f.naechsteFrist); return d !== null && d >= 0 && d <= 60; });
-  if (fristFilter === 'ueberfallig') list = list.filter(f => { const d = daysUntil(f.naechsteFrist); return d !== null && d < 0; });
-  if (fristFilter === 'keine')       list = list.filter(f => !f.naechsteFrist);
+  if (fristFilter === 'bald')       list = list.filter(f => { const d = daysUntil(nextFrist(f)?.datum); return d !== null && d >= 0 && d <= 60; });
+  if (fristFilter === 'ueberfallig') list = list.filter(f => { const d = daysUntil(nextFrist(f)?.datum); return d !== null && d < 0; });
+  if (fristFilter === 'keine')       list = list.filter(f => !nextFrist(f));
 
   list.sort((a,b) => {
-    const da = a.naechsteFrist ? new Date(a.naechsteFrist) : new Date('9999');
-    const db = b.naechsteFrist ? new Date(b.naechsteFrist) : new Date('9999');
+    const da = nextFrist(a)?.datum ? new Date(nextFrist(a).datum) : new Date('9999');
+    const db = nextFrist(b)?.datum ? new Date(nextFrist(b).datum) : new Date('9999');
     return da - db;
   });
 
@@ -2057,11 +2171,12 @@ function renderFoundations() {
   }
 
   $('fnd-list').innerHTML = list.map(f => {
-    const d = daysUntil(f.naechsteFrist);
+    const nf = nextFrist(f);
+    const d = daysUntil(nf?.datum);
     let fristHtml = '';
-    if (f.naechsteFrist) {
+    if (nf?.datum) {
       const color = d < 0 ? 'var(--danger)' : d <= 30 ? 'var(--orange)' : 'var(--text-dim)';
-      fristHtml = `<span style="color:${color};font-size:12px">Frist: ${fmtDate(f.naechsteFrist)}${d !== null ? ` (${d >= 0 ? 'in ' + d + ' T.' : Math.abs(d) + ' T. überfällig'})` : ''}</span>`;
+      fristHtml = `<span style="color:${color};font-size:12px">Frist: ${fmtDate(nf.datum)}${nf.bezeichnung ? ' (' + escapeHtml(nf.bezeichnung) + ')' : ''}${d !== null ? ` (${d >= 0 ? 'in ' + d + ' T.' : Math.abs(d) + ' T. überfällig'})` : ''}</span>`;
     }
     return `<div class="record-card" data-id="${escapeHtml(f.id)}" data-type="fnd">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px">
@@ -2172,17 +2287,76 @@ function renderFndOverviewTab(f) {
           <option value="sitzungen" ${f.fristTyp === 'sitzungen' ? 'selected' : ''}>Sitzungen</option>
         </select>
       </div>
-      <div id="fndw-frist-wrap" style="display:${f.fristTyp === 'stichtag' ? '' : 'none'}">
-        <label for="fndw-naechsteFrist">Nächste Frist</label>
-        <input type="date" id="fndw-naechsteFrist" value="${escapeHtml(f.naechsteFrist || '')}">
+    </div>
+
+    <!-- D-081 (Phase I): fristen[] ersetzt das frühere Einzeldatum naechsteFrist
+         — mehrere Förderstellen haben mehrere Eingabetermine pro Jahr. -->
+    <div id="fndw-fristen-wrap" class="modal-section" style="display:${f.fristTyp !== 'laufend' ? '' : 'none'}">
+      <div class="modal-section-title">Fristen</div>
+      <div id="fndw-frist-list"></div>
+      <button type="button" class="sub-add-btn" id="fndw-frist-toggle">+ Frist hinzufügen</button>
+      <div class="sub-add-form" id="fndw-frist-form">
+        <label for="fndw-frist-datum">Datum *</label>
+        <input type="date" id="fndw-frist-datum">
+        <label for="fndw-frist-bezeichnung">Bezeichnung (z. B. Sparte/Instrument)</label>
+        <input type="text" id="fndw-frist-bezeichnung" autocomplete="off">
+        <label><input type="checkbox" id="fndw-frist-wiederkehrend"> Wiederkehrend (jährlich)</label>
+        <div class="sub-add-row">
+          <button type="button" class="sub-cancel-btn" id="fndw-frist-cancel">Abbrechen</button>
+          <button type="button" class="sub-ok" id="fndw-frist-save">Hinzufügen</button>
+        </div>
       </div>
     </div>
+
     <label for="fndw-themen-tags">Themen</label>
     <div class="tag-input-wrap" id="fndw-themen-tags"></div>
     <label for="fndw-foerderbereiche-tags">Förderbereiche (Formate)</label>
     <div class="tag-input-wrap" id="fndw-foerderbereiche-tags"></div>
     <label for="fndw-ausschluss-tags">Ausschluss-Kriterien</label>
     <div class="tag-input-wrap" id="fndw-ausschluss-tags"></div>
+
+    <div class="modal-section-title" style="margin-top:22px">Rahmenbedingungen</div>
+    <label for="fndw-zusammenarbeitsart">Art der Zusammenarbeit</label>
+    <input type="text" id="fndw-zusammenarbeitsart" placeholder="z. B. reine Geldvergabe vs. operative Begleitung/Beziehung" value="${escapeHtml(f.zusammenarbeitsart || '')}">
+    <label for="fndw-mehrwerte-tags">Erwartete Mehrwerte</label>
+    <div class="tag-input-wrap" id="fndw-mehrwerte-tags"></div>
+    <div class="field-row">
+      <div>
+        <label for="fndw-aktuellerFokus">Aktueller Fokus (falls abweichend vom Förderbereich)</label>
+        <input type="text" id="fndw-aktuellerFokus" placeholder="z. B. Zielgruppe 65+" value="${escapeHtml(f.aktuellerFokus || '')}">
+      </div>
+      <div>
+        <label for="fndw-aktuellerFokusNotiz">Aktueller Fokus – Notiz</label>
+        <input type="text" id="fndw-aktuellerFokusNotiz" placeholder="O-Ton/Begründung" value="${escapeHtml(f.aktuellerFokusNotiz || '')}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div>
+        <label for="fndw-mehrfachfoerderung">Mehrfachförderung</label>
+        <select id="fndw-mehrfachfoerderung">
+          <option value="unbekannt" ${(f.mehrfachfoerderung || 'unbekannt') === 'unbekannt' ? 'selected' : ''}>Unbekannt</option>
+          <option value="erlaubt" ${f.mehrfachfoerderung === 'erlaubt' ? 'selected' : ''}>Erlaubt</option>
+          <option value="meldepflichtig" ${f.mehrfachfoerderung === 'meldepflichtig' ? 'selected' : ''}>Meldepflichtig</option>
+          <option value="ausgeschlossen" ${f.mehrfachfoerderung === 'ausgeschlossen' ? 'selected' : ''}>Ausgeschlossen</option>
+        </select>
+      </div>
+      <div>
+        <label for="fndw-mehrfachfoerderungNotiz">Mehrfachförderung – Notiz</label>
+        <input type="text" id="fndw-mehrfachfoerderungNotiz" value="${escapeHtml(f.mehrfachfoerderungNotiz || '')}">
+      </div>
+    </div>
+    <label for="fndw-subsidiaritaet">Subsidiarität (vorgelagerte Anlaufstellen/Bedingungen)</label>
+    <input type="text" id="fndw-subsidiaritaet" value="${escapeHtml(f.subsidiaritaet || '')}">
+    <div class="field-row">
+      <div>
+        <label for="fndw-mindestvorlauf">Mindestvorlauf (Monate vor Realisierung)</label>
+        <input type="text" id="fndw-mindestvorlauf" inputmode="numeric" value="${f.mindestvorlaufMonate ?? ''}">
+      </div>
+      <div>
+        <label for="fndw-herausgeber">Herausgeber (falls abweichend vom Namen)</label>
+        <input type="text" id="fndw-herausgeber" placeholder="z. B. Kanton Basel-Stadt, Abteilung Kultur" value="${escapeHtml(f.herausgeber || '')}">
+      </div>
+    </div>
 
     <div class="modal-section-title" style="margin-top:22px">Beträge</div>
     <div class="field-row">
@@ -2216,7 +2390,6 @@ function renderFndOverviewTab(f) {
 
     <div class="modal-buttons">
       <button class="btn-delete" id="fndw-delete">Löschen</button>
-      <button class="btn-save"   id="fndw-save">Speichern</button>
     </div>
 
     <!-- D-057: Kontextpaket-Bau ist nicht mehr nur beim Antrag verfügbar. -->
@@ -2244,11 +2417,11 @@ function renderFndOverviewTab(f) {
   renderTagField('fndw-themen-tags', f.themen, 'dl-vocab-themen');
   renderTagField('fndw-foerderbereiche-tags', f.foerderbereiche, 'dl-vocab-format');
   renderTagField('fndw-ausschluss-tags', f.ausschluss);
+  renderTagField('fndw-mehrwerte-tags', f.erwarteteMehrwerte, 'dl-vocab-mehrwerte');
 
   $('fndw-fristTyp').addEventListener('change', () => {
-    $('fndw-frist-wrap').style.display = getV('fndw-fristTyp') === 'stichtag' ? '' : 'none';
+    $('fndw-fristen-wrap').style.display = getV('fndw-fristTyp') !== 'laufend' ? '' : 'none';
   });
-  $('fndw-save').addEventListener('click', () => saveFndOverview(f.id));
   $('fndw-delete').addEventListener('click', () => deleteFndFromWorkspace(f.id));
   $('fndw-pkg-btn').addEventListener('click', () => downloadContextPackage({ foundationId: f.id }));
 
@@ -2256,6 +2429,80 @@ function renderFndOverviewTab(f) {
   $('fndw-passung-set-btn').addEventListener('click', () =>
     setPassung(f.id, getV('fndw-passung-traeger'), Number(getV('fndw-passung-value')))
   );
+
+  renderFristenSubList(f);
+  $('fndw-frist-toggle').addEventListener('click', () => $('fndw-frist-form').classList.add('show'));
+  $('fndw-frist-cancel').addEventListener('click', () => {
+    $('fndw-frist-form').classList.remove('show');
+    setV('fndw-frist-datum',''); setV('fndw-frist-bezeichnung',''); $('fndw-frist-wiederkehrend').checked = false;
+  });
+  $('fndw-frist-save').addEventListener('click', () => addFrist(f.id));
+
+  wireAutoSave('fndw-panel-overview', () => saveFndOverview(f.id));
+}
+
+// D-081 (Phase I): Fristen-Unterliste, analog zum Meilensteine-Muster
+// (Projekt-Workspace) — eigene Hinzufügen/Löschen-Funktion statt Teil des
+// allgemeinen Auto-Save, da .modal-section-Felder davon ausgenommen sind.
+function renderFristenSubList(f) {
+  const list = (f.fristen || []).slice().sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  $('fndw-frist-list').innerHTML = list.length
+    ? list.map(fr => `
+      <div class="sub-item">
+        <div class="sub-item-main">
+          <div class="sub-item-name">${fr.datum ? fmtDate(fr.datum) : 'kein Datum'}${fr.wiederkehrend ? ' · wiederkehrend' : ''}</div>
+          <div class="sub-item-sub">${fr.bezeichnung ? escapeHtml(fr.bezeichnung) : 'keine Bezeichnung'}</div>
+        </div>
+        <button class="sub-item-del" data-frist="${escapeHtml(fr.id)}" title="Frist entfernen">×</button>
+      </div>`).join('')
+    : '<p style="font-size:13px;color:var(--text-dim)">Keine Fristen erfasst.</p>';
+  $('fndw-frist-list').querySelectorAll('.sub-item-del').forEach(btn =>
+    btn.addEventListener('click', () => deleteFrist(f.id, btn.dataset.frist))
+  );
+}
+
+function addFrist(foundationId) {
+  const datum = getV('fndw-frist-datum');
+  if (!datum) { showAlert('Datum ist ein Pflichtfeld.'); return; }
+  const f = localData.foundations.find(x => x.id === foundationId);
+  if (!f) return;
+  if (!Array.isArray(f.fristen)) f.fristen = [];
+  f.fristen.push({
+    id: newId('frist'),
+    datum,
+    bezeichnung: getV('fndw-frist-bezeichnung') || '',
+    wiederkehrend: $('fndw-frist-wiederkehrend').checked
+  });
+  f.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
+  setV('fndw-frist-datum',''); setV('fndw-frist-bezeichnung',''); $('fndw-frist-wiederkehrend').checked = false;
+  $('fndw-frist-form').classList.remove('show');
+  renderFristenSubList(f);
+  renderFoundations();
+  syncNow({ force: true });
+}
+
+function deleteFrist(foundationId, fristId) {
+  const f = localData.foundations.find(x => x.id === foundationId);
+  if (!f) return;
+  f.fristen = (f.fristen || []).filter(fr => fr.id !== fristId);
+  f.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
+  renderFristenSubList(f);
+  renderFoundations();
+  syncNow({ force: true });
+}
+
+// D-081: nächstliegende/kommende Frist aus fristen[] statt des früheren
+// Einzeldatums naechsteFrist — bei "wiederkehrend" wird das eingetragene
+// Datum nur fürs laufende Jahr betrachtet (kein Jahres-Rollover-Rechnen
+// nötig, Termine werden ohnehin jährlich neu eingetragen). Sind alle
+// Fristen bereits vorbei, wird die jüngste zurückgegeben (statt nichts).
+function nextFrist(f) {
+  const list = (f.fristen || []).filter(fr => fr.datum);
+  if (!list.length) return null;
+  const today = nowIso().slice(0, 10);
+  const upcoming = list.filter(fr => fr.datum >= today).sort((a,b) => a.datum.localeCompare(b.datum));
+  if (upcoming.length) return upcoming[0];
+  return list.slice().sort((a,b) => b.datum.localeCompare(a.datum))[0];
 }
 
 function saveFndOverview(id) {
@@ -2263,17 +2510,25 @@ function saveFndOverview(id) {
   if (!f) return;
   const nameVoll = getV('fndw-nameVoll');
   const nameKurz = getV('fndw-nameKurz');
-  if (!nameVoll || !nameKurz) { showAlert('Name und Kürzel sind Pflichtfelder.'); return; }
+  if (!nameVoll || !nameKurz) return; // Auto-Save: Pflichtfelder fehlen, still überspringen
   const quotePct = parseFloat10(getV('fndw-quote'));
   f.nameVoll = nameVoll;
   f.nameKurz = nameKurz;
   f.website = getV('fndw-website') || null;
   f.status = getV('fndw-status') || 'aktiv';
   f.fristTyp = getV('fndw-fristTyp') || 'laufend';
-  f.naechsteFrist = getV('fndw-naechsteFrist') || null;
   f.themen = getTagsFromField('fndw-themen-tags');
   f.foerderbereiche = getTagsFromField('fndw-foerderbereiche-tags');
   f.ausschluss = getTagsFromField('fndw-ausschluss-tags');
+  f.erwarteteMehrwerte = getTagsFromField('fndw-mehrwerte-tags');
+  f.zusammenarbeitsart = getV('fndw-zusammenarbeitsart') || null;
+  f.aktuellerFokus = getV('fndw-aktuellerFokus') || null;
+  f.aktuellerFokusNotiz = getV('fndw-aktuellerFokusNotiz') || null;
+  f.mehrfachfoerderung = getV('fndw-mehrfachfoerderung') || 'unbekannt';
+  f.mehrfachfoerderungNotiz = getV('fndw-mehrfachfoerderungNotiz') || null;
+  f.subsidiaritaet = getV('fndw-subsidiaritaet') || null;
+  f.mindestvorlaufMonate = parseInt10(getV('fndw-mindestvorlauf'));
+  f.herausgeber = getV('fndw-herausgeber') || null;
   f.typischeFoerdersummeChf = parseFloat10(getV('fndw-typische'));
   f.maxFoerdersummeChf = parseFloat10(getV('fndw-max'));
   f.bearbeitungsdauerMonate = parseInt10(getV('fndw-dauer'));
@@ -2344,8 +2599,13 @@ function getOrCreateProfile(f) {
   return null;
 }
 
+// D-078 (Phase H): Bearbeiten-Modus fürs Anforderungsprofil-Formular — null
+// heisst "Hinzufügen", sonst Index der bearbeiteten Zeile in requiredBlocks[].
+let fndProfileReqEditIndex = null;
+
 function renderFndProfileTab(f) {
   refreshVocabDatalists();
+  fndProfileReqEditIndex = null;
   const profile = getOrCreateProfile(f);
   const blocks = profile?.requiredBlocks || [];
   const rows = blocks.length
@@ -2353,8 +2613,9 @@ function renderFndProfileTab(f) {
       <div class="sub-item">
         <div class="sub-item-main">
           <div class="sub-item-name">${escapeHtml(BLOCKTYPE_LABEL[rb.blockType] || rb.blockType)}${rb.required ? ' · Pflicht' : ''}</div>
-          <div class="sub-item-sub">${rb.hinweis ? escapeHtml(rb.hinweis) : 'kein Hinweis'}</div>
+          <div class="sub-item-sub">${rb.hinweis ? escapeHtml(rb.hinweis) : 'kein Hinweis'}${rb.bedingung ? ' · Bedingung: ' + escapeHtml(rb.bedingung) : ''}</div>
         </div>
+        <button class="sub-item-edit" data-i="${i}" title="Anforderung bearbeiten">✎</button>
         <button class="sub-item-del" data-i="${i}" title="Anforderung entfernen">×</button>
       </div>`).join('')
     : '<p style="font-size:13px;color:var(--text-dim)">Keine Anforderungen definiert.</p>';
@@ -2367,6 +2628,8 @@ function renderFndProfileTab(f) {
       <input type="text" id="fndw-rb-blockType" list="dl-vocab-blockType" autocomplete="off">
       <label for="fndw-rb-hinweis">Hinweis (z. B. "ca. 500 Wörter", "als Tabelle")</label>
       <input type="text" id="fndw-rb-hinweis" autocomplete="off">
+      <label for="fndw-rb-bedingung">Bedingung (z. B. "nur bei Buchpublikation")</label>
+      <input type="text" id="fndw-rb-bedingung" autocomplete="off">
       <label><input type="checkbox" id="fndw-rb-required"> Pflicht</label>
       <div class="sub-add-row">
         <button type="button" class="sub-cancel-btn" id="fndw-rb-cancel">Abbrechen</button>
@@ -2375,15 +2638,36 @@ function renderFndProfileTab(f) {
     </div>
   `;
 
+  $('fndw-panel-profile').querySelectorAll('.sub-item-edit').forEach(btn =>
+    btn.addEventListener('click', () => startEditProfileRequirement(f, Number(btn.dataset.i)))
+  );
   $('fndw-panel-profile').querySelectorAll('.sub-item-del').forEach(btn =>
     btn.addEventListener('click', () => removeProfileRequirement(f.id, Number(btn.dataset.i)))
   );
   $('fndw-rb-toggle').addEventListener('click', () => $('fndw-rb-form').classList.add('show'));
   $('fndw-rb-cancel').addEventListener('click', () => {
     $('fndw-rb-form').classList.remove('show');
-    setV('fndw-rb-blockType',''); setV('fndw-rb-hinweis',''); $('fndw-rb-required').checked = false;
+    fndProfileReqEditIndex = null;
+    $('fndw-rb-save').textContent = 'Hinzufügen';
+    setV('fndw-rb-blockType',''); setV('fndw-rb-hinweis',''); setV('fndw-rb-bedingung',''); $('fndw-rb-required').checked = false;
   });
-  $('fndw-rb-save').addEventListener('click', () => addProfileRequirement(f.id));
+  $('fndw-rb-save').addEventListener('click', () => {
+    if (fndProfileReqEditIndex !== null) updateProfileRequirement(f.id, fndProfileReqEditIndex);
+    else addProfileRequirement(f.id);
+  });
+}
+
+function startEditProfileRequirement(f, index) {
+  const profile = getOrCreateProfile(f);
+  const rb = profile?.requiredBlocks?.[index];
+  if (!rb) return;
+  fndProfileReqEditIndex = index;
+  setV('fndw-rb-blockType', rb.blockType || '');
+  setV('fndw-rb-hinweis', rb.hinweis || '');
+  setV('fndw-rb-bedingung', rb.bedingung || '');
+  $('fndw-rb-required').checked = !!rb.required;
+  $('fndw-rb-save').textContent = 'Speichern';
+  $('fndw-rb-form').classList.add('show');
 }
 
 function addProfileRequirement(foundationId) {
@@ -2400,13 +2684,33 @@ function addProfileRequirement(foundationId) {
   profile.requiredBlocks.push({
     blockType,
     hinweis: getV('fndw-rb-hinweis') || '',
+    bedingung: getV('fndw-rb-bedingung') || '',
     required: $('fndw-rb-required').checked
   });
   profile.modified = nowIso();
   upsertRecord('requirementProfiles', profile);
   f.modified = nowIso();
   upsertRecord('foundations', f);
-  setV('fndw-rb-blockType',''); setV('fndw-rb-hinweis',''); $('fndw-rb-required').checked = false;
+  setV('fndw-rb-blockType',''); setV('fndw-rb-hinweis',''); setV('fndw-rb-bedingung',''); $('fndw-rb-required').checked = false;
+  renderFndProfileTab(f);
+  syncNow({ force: true });
+}
+
+function updateProfileRequirement(foundationId, index) {
+  const blockType = getV('fndw-rb-blockType');
+  if (!blockType) { showAlert('Bausteintyp ist ein Pflichtfeld.'); return; }
+  const f = localData.foundations.find(x => x.id === foundationId);
+  if (!f) return;
+  const profile = getOrCreateProfile(f);
+  if (!profile?.requiredBlocks?.[index]) return;
+  profile.requiredBlocks[index] = {
+    blockType,
+    hinweis: getV('fndw-rb-hinweis') || '',
+    bedingung: getV('fndw-rb-bedingung') || '',
+    required: $('fndw-rb-required').checked
+  };
+  profile.modified = nowIso();
+  upsertRecord('requirementProfiles', profile);
   renderFndProfileTab(f);
   syncNow({ force: true });
 }
@@ -2679,7 +2983,6 @@ function renderProjectOverviewTab(p) {
 
     <div class="modal-buttons">
       <button class="btn-delete" id="prjw-ov-delete">Löschen</button>
-      <button class="btn-save"   id="prjw-ov-save">Speichern</button>
     </div>
 
     <!-- D-057: Kontextpaket-Bau ist nicht mehr nur beim Antrag verfügbar. -->
@@ -2708,7 +3011,6 @@ function renderProjectOverviewTab(p) {
   renderTagField('prjw-ov-format-tags', p.format, 'dl-vocab-format');
   renderTagField('prjw-ov-geo-tags',    p.geo,    'dl-vocab-geo');
 
-  $('prjw-ov-save').addEventListener('click', () => saveProjectOverview(p.id));
   $('prjw-ov-delete').addEventListener('click', () => deleteProjectFromWorkspace(p.id));
   $('prjw-pkg-btn').addEventListener('click', () => downloadContextPackage({ traegerId: p.traegerId, projectId: p.id }));
 
@@ -2719,6 +3021,8 @@ function renderProjectOverviewTab(p) {
     setV('prjw-ms-datum',''); setV('prjw-ms-bezeichnung','');
   });
   $('prjw-ms-save').addEventListener('click', () => saveMeilenstein(p.id));
+
+  wireAutoSave('prjw-panel-overview', () => saveProjectOverview(p.id));
 }
 
 function saveProjectOverview(id) {
@@ -2726,8 +3030,7 @@ function saveProjectOverview(id) {
   if (!p) return;
   const titel = getV('prjw-ov-titel');
   const traegerId = getV('prjw-ov-traegerId');
-  if (!titel) { showAlert('Titel ist ein Pflichtfeld.'); return; }
-  if (!traegerId) { showAlert('Bitte einen Träger wählen.'); return; }
+  if (!titel || !traegerId) return; // Auto-Save: Pflichtfelder fehlen, still überspringen
   p.titel = titel;
   p.traegerId = traegerId;
   p.status = getV('prjw-ov-status') || 'idee';
@@ -3291,7 +3594,6 @@ function renderAppOverviewTab(a) {
 
     <div class="modal-buttons">
       <button class="btn-delete" id="appw-delete">Löschen</button>
-      <button class="btn-save"   id="appw-save">Speichern</button>
     </div>
 
     <!-- Phase 4: Kontextpaket-Bau (D-023, jetzt aus dem Antrags-Workspace) -->
@@ -3322,11 +3624,12 @@ function renderAppOverviewTab(a) {
   $('app-traegerId').addEventListener('change', () => populateProjectSelect(getV('app-traegerId'), ''));
   $('app-foundationId').addEventListener('change', () => populatePersonSelect(getV('app-foundationId'), ''));
   $('app-entscheidEin').addEventListener('change', toggleAbschlussnotizWrap);
-  $('appw-save').addEventListener('click', () => saveAppOverview(a.id));
   $('appw-delete').addEventListener('click', () => deleteAppFromWorkspace(a.id));
   $('app-pkg-btn').addEventListener('click', () => downloadContextPackage({
     traegerId: a.traegerId, foundationId: a.foundationId, projectId: a.projectId, appId: a.id
   }));
+
+  wireAutoSave('appw-panel-overview', () => saveAppOverview(a.id));
 }
 
 function saveAppOverview(id) {
@@ -3335,9 +3638,7 @@ function saveAppOverview(id) {
   const traegerId    = getV('app-traegerId');
   const foundationId = getV('app-foundationId');
   const projectId    = getV('app-projectId');
-  if (!traegerId || !foundationId || !projectId) {
-    showAlert('Träger, Stiftung und Projekt sind Pflichtfelder.'); return;
-  }
+  if (!traegerId || !foundationId || !projectId) return; // Auto-Save: Pflichtfelder fehlen, still überspringen
   const previousProjectId = a.projectId;
   a.traegerId = traegerId;
   a.foundationId = foundationId;
@@ -3954,7 +4255,6 @@ function renderBlockWorkspace(b) {
 
       <div class="modal-buttons">
         <button class="btn-delete" id="blk-delete">Löschen</button>
-        <button class="btn-save"   id="blk-save">Speichern</button>
       </div>
     </div>
   `;
@@ -3965,7 +4265,6 @@ function renderBlockWorkspace(b) {
   renderVariantsSubList();
   renderUsedInProjects(b.id);
 
-  $('blk-save').addEventListener('click', () => saveBlk(b.id));
   $('blk-delete').addEventListener('click', () => deleteBlk(b.id));
   $('blk-download-btn').addEventListener('click', () => downloadBlock(b.id));
   $('blk-traegerId').addEventListener('change', onBlkTraegerChange);
@@ -3974,6 +4273,8 @@ function renderBlockWorkspace(b) {
   $('blk-variant-toggle').addEventListener('click', () => $('blk-variant-form').classList.toggle('show'));
   $('bv-cancel').addEventListener('click', () => $('blk-variant-form').classList.remove('show'));
   $('bv-save').addEventListener('click', saveVariantMeta);
+
+  wireAutoSave('blk-workspace', () => saveBlk(b.id));
 }
 
 function renderVariantsSubList() {
@@ -3996,6 +4297,7 @@ function renderVariantsSubList() {
     el.querySelector('[data-action="delete"]').addEventListener('click', () => {
       currentVariants = currentVariants.filter(x => x.key !== key);
       renderVariantsSubList();
+      saveBlk(selectedBlkId); // D-079: kein Speichern-Button mehr, sofort persistieren
     });
   });
 }
@@ -4013,6 +4315,7 @@ function saveVariantMeta() {
   setV('bv-label', '');
   $('blk-variant-form').classList.remove('show');
   renderVariantsSubList();
+  saveBlk(selectedBlkId); // D-079: kein Speichern-Button mehr, sofort persistieren
 }
 
 function renderUsedInProjects(blockId) {
@@ -4036,7 +4339,7 @@ function saveBlk(id) {
   const b = findBlock(id);
   if (!b) return;
   const titel = getV('blk-titel');
-  if (!titel) { showAlert('Titel ist ein Pflichtfeld.'); return; }
+  if (!titel) return; // Auto-Save: Pflichtfeld fehlt, still überspringen
 
   // D-071: Träger ist nicht mehr Pflicht (leer = trägerübergreifend). Ein
   // gewähltes Projekt bestimmt den Träger immer eindeutig mit (verhindert
@@ -4064,7 +4367,12 @@ function saveBlk(id) {
   b.modified = nowIso();
   upsertRecord('blocks', b);
   renderBlocks();
-  renderBlockWorkspace(b);
+  // D-079: kein renderBlockWorkspace(b) mehr hier — würde bei jedem Auto-Save
+  // (debounced während des Tippens) das ganze Panel neu aufbauen und damit
+  // Fokus/Cursor aus dem gerade bearbeiteten Feld werfen. Nur die zwei
+  // wirklich abhängigen Anzeigen gezielt auffrischen.
+  $('blk-scope-label').textContent = blockScopeLabel(b);
+  renderUsedInProjects(b.id);
 
   if (prevProjectId && selectedPrjId === prevProjectId && currentProjectTab === 'blocks') {
     renderProjectBlocksTab(localData.projects.find(x => x.id === prevProjectId));
@@ -4434,9 +4742,15 @@ function buildTimelineEntries() {
   const relevantFoundationIds = new Set(
     localData.applications.filter(a => !a.deleted && activeProjectIds.has(a.projectId)).map(a => a.foundationId)
   );
+  // D-081: ein Timeline-Eintrag PRO Frist (nicht mehr nur einer pro Stiftung)
+  // — mehrere Förderstellen haben mehrere Eingabetermine pro Jahr.
   for (const f of localData.foundations) {
-    if (f.deleted || !f.naechsteFrist || !relevantFoundationIds.has(f.id)) continue;
-    entries.push({ date: f.naechsteFrist, kind: 'frist', label: `Frist: ${f.nameKurz || f.nameVoll}`, projectId: null });
+    if (f.deleted || !relevantFoundationIds.has(f.id)) continue;
+    for (const fr of (f.fristen || [])) {
+      if (!fr.datum) continue;
+      const label = `Frist: ${f.nameKurz || f.nameVoll}${fr.bezeichnung ? ' (' + fr.bezeichnung + ')' : ''}`;
+      entries.push({ date: fr.datum, kind: 'frist', label, projectId: null });
+    }
   }
 
   // Antragstermine
@@ -4684,7 +4998,6 @@ function renderTrgOverviewTab(t) {
     <input type="text" id="trgw-bankverbindung" value="${escapeHtml(t.bankverbindung || '')}">
     <div class="modal-buttons">
       <button class="btn-delete" id="trgw-delete">Löschen</button>
-      <button class="btn-save"   id="trgw-save">Speichern</button>
     </div>
 
     <!-- D-057: Kontextpaket-Bau ist nicht mehr nur beim Antrag verfügbar —
@@ -4693,16 +5006,17 @@ function renderTrgOverviewTab(t) {
       <button type="button" class="sub-add-btn" id="trgw-pkg-btn" style="display:flex;align-items:center;gap:8px">${PKG_ICON_SVG}Kontextpaket herunterladen</button>
     </div>
   `;
-  $('trgw-save').addEventListener('click', () => saveTrgOverview(t.id));
   $('trgw-delete').addEventListener('click', () => deleteTrgFromWorkspace(t.id));
   $('trgw-pkg-btn').addEventListener('click', () => downloadContextPackage({ traegerId: t.id }));
+
+  wireAutoSave('trgw-panel-overview', () => saveTrgOverview(t.id));
 }
 
 function saveTrgOverview(id) {
   const t = localData.traeger.find(x => x.id === id);
   if (!t) return;
   const nameVoll = getV('trgw-nameVoll');
-  if (!nameVoll) { showAlert('Bitte einen Namen eingeben.'); return; }
+  if (!nameVoll) return; // Auto-Save: Pflichtfeld fehlt, still überspringen
   t.nameVoll = nameVoll;
   t.nameKurz = getV('trgw-nameKurz') || nameVoll;
   t.rechtsform = getV('trgw-rechtsform') || null;
@@ -4849,25 +5163,26 @@ function renderPromptWorkspace(p) {
       <textarea id="prm-body" style="min-height:260px">${escapeHtml(p.body || '')}</textarea>
       <div class="modal-buttons">
         <button class="btn-delete" id="prm-delete">Löschen</button>
-        <button class="btn-save"   id="prm-save">Speichern</button>
       </div>
     </div>
   `;
-  $('prm-save').addEventListener('click', () => savePrompt(p.id));
   $('prm-delete').addEventListener('click', () => deletePrompt(p.id));
+
+  wireAutoSave('prm-workspace', () => savePrompt(p.id));
 }
 
 function savePrompt(id) {
   const p = localData.promptTemplates.find(x => x.id === id);
   if (!p) return;
   const title = getV('prm-title');
-  if (!title) { showAlert('Titel ist ein Pflichtfeld.'); return; }
+  if (!title) return; // Auto-Save: Pflichtfeld fehlt, still überspringen
   p.title = title;
   p.body = getV('prm-body') || '';
   p.modified = nowIso();
   upsertRecord('promptTemplates', p);
   renderPrompts();
-  renderPromptWorkspace(p);
+  // D-079: kein renderPromptWorkspace(p) mehr — würde bei debounced Auto-Save
+  // während des Tippens Fokus/Cursor aus dem Textfeld werfen.
   showToast('Gespeichert');
   syncNow({ force: true });
 }
@@ -5006,16 +5321,29 @@ function traegerDetailLines(t) {
 // Passungs-Bewertung (falls vorhanden) mit auszugeben.
 function foundationDetailLines(f, traegerForPassung) {
   const quote = f.erfolgsquoteGeschaetzt != null ? Math.round(f.erfolgsquoteGeschaetzt * 100) + '%' : null;
+  const fristenText = (f.fristen || []).filter(fr => fr.datum)
+    .slice().sort((a,b) => a.datum.localeCompare(b.datum))
+    .map(fr => `${fmtDate(fr.datum)}${fr.bezeichnung ? ' (' + fr.bezeichnung + ')' : ''}${fr.wiederkehrend ? ' [wiederkehrend]' : ''}`)
+    .join('; ');
   const fields = kvLines([
     ['Name (vollständig)', f.nameVoll],
     ['Kürzel', f.nameKurz],
     ['Status', FOUNDATION_STATUS[f.status] || f.status],
     ['Website', f.website],
     ['Frist-Typ', FRIST_TYP_LABEL[f.fristTyp] || f.fristTyp],
-    ['Nächste Frist', f.naechsteFrist ? fmtDate(f.naechsteFrist) : null],
+    ['Fristen', fristenText],
     ['Themen', (f.themen || []).join(', ')],
     ['Förderbereiche', (f.foerderbereiche || []).join(', ')],
     ['Ausschlusskriterien', (f.ausschluss || []).join(', ')],
+    ['Art der Zusammenarbeit', f.zusammenarbeitsart],
+    ['Erwartete Mehrwerte', (f.erwarteteMehrwerte || []).join(', ')],
+    ['Aktueller Fokus', f.aktuellerFokus],
+    ['Aktueller Fokus – Notiz', f.aktuellerFokusNotiz],
+    ['Mehrfachförderung', MEHRFACHFOERDERUNG_LABEL[f.mehrfachfoerderung] || f.mehrfachfoerderung],
+    ['Mehrfachförderung – Notiz', f.mehrfachfoerderungNotiz],
+    ['Subsidiarität', f.subsidiaritaet],
+    ['Mindestvorlauf', f.mindestvorlaufMonate != null ? f.mindestvorlaufMonate + ' Monate' : null],
+    ['Herausgeber', f.herausgeber],
     ['Typische Fördersumme', f.typischeFoerdersummeChf != null ? fmtChf(f.typischeFoerdersummeChf) : null],
     ['Max. Fördersumme', f.maxFoerdersummeChf != null ? fmtChf(f.maxFoerdersummeChf) : null],
     ['Bearbeitungsdauer', f.bearbeitungsdauerMonate != null ? f.bearbeitungsdauerMonate + ' Monate' : null],
@@ -5287,9 +5615,24 @@ function resolveFoundationImportRow(row) {
     website: row.website ?? existing?.website ?? null,
     fristTyp: row.fristTyp || existing?.fristTyp || 'laufend',
     naechsteFrist: row.naechsteFrist ?? existing?.naechsteFrist ?? null,
+    // D-081: fristen[] aus row.fristen übernehmen (falls vorhanden), sonst
+    // aus dem alten Einzeldatum row.naechsteFrist wrappen, sonst bestehende
+    // fristen[] des Datensatzes unangetastet lassen.
+    fristen: Array.isArray(row.fristen)
+      ? row.fristen.map(fr => ({ id: newId('frist'), datum: fr.datum || null, bezeichnung: fr.bezeichnung || '', wiederkehrend: !!fr.wiederkehrend }))
+      : (row.naechsteFrist ? [{ id: newId('frist'), datum: row.naechsteFrist, bezeichnung: '', wiederkehrend: false }] : (existing?.fristen || [])),
     themen: row.themen || existing?.themen || [],
     foerderbereiche: row.foerderbereiche || existing?.foerderbereiche || [],
     ausschluss: row.ausschluss || existing?.ausschluss || [],
+    zusammenarbeitsart: row.zusammenarbeitsart ?? existing?.zusammenarbeitsart ?? null,
+    erwarteteMehrwerte: row.erwarteteMehrwerte || existing?.erwarteteMehrwerte || [],
+    aktuellerFokus: row.aktuellerFokus ?? existing?.aktuellerFokus ?? null,
+    aktuellerFokusNotiz: row.aktuellerFokusNotiz ?? existing?.aktuellerFokusNotiz ?? null,
+    mehrfachfoerderung: row.mehrfachfoerderung || existing?.mehrfachfoerderung || 'unbekannt',
+    mehrfachfoerderungNotiz: row.mehrfachfoerderungNotiz ?? existing?.mehrfachfoerderungNotiz ?? null,
+    subsidiaritaet: row.subsidiaritaet ?? existing?.subsidiaritaet ?? null,
+    mindestvorlaufMonate: row.mindestvorlaufMonate ?? existing?.mindestvorlaufMonate ?? null,
+    herausgeber: row.herausgeber ?? existing?.herausgeber ?? null,
     typischeFoerdersummeChf: row.typischeFoerdersummeChf ?? existing?.typischeFoerdersummeChf ?? null,
     maxFoerdersummeChf: row.maxFoerdersummeChf ?? existing?.maxFoerdersummeChf ?? null,
     bearbeitungsdauerMonate: row.bearbeitungsdauerMonate ?? existing?.bearbeitungsdauerMonate ?? null,
@@ -5310,7 +5653,7 @@ function resolveFoundationImportRow(row) {
     row.anforderungsprofil.forEach((rb, i) => {
       const blockType = rb.blockType || rb.typ || '';
       if (!blockType) { errors.push(`Anforderungsprofil Zeile ${i + 1}: blockType fehlt`); return; }
-      requirementBlocksToSet.push({ blockType, hinweis: rb.hinweis || '', required: !!rb.required });
+      requirementBlocksToSet.push({ blockType, hinweis: rb.hinweis || '', bedingung: rb.bedingung || '', required: !!rb.required });
     });
   }
 
@@ -5749,6 +6092,28 @@ function bindEvents() {
 
   // Settings-/Gear-Button
   $('settings-btn').addEventListener('click', () => openGearModal());
+
+  // Sidebar einklappen (D-077, Phase H)
+  if (localStorage.getItem(FR_SIDEBAR_COLLAPSED_KEY) === '1') {
+    document.querySelector('.sidebar').classList.add('collapsed');
+  }
+  $('sidebar-toggle').addEventListener('click', () => {
+    const collapsed = document.querySelector('.sidebar').classList.toggle('collapsed');
+    localStorage.setItem(FR_SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+  });
+
+  // Splitview-Listen einklappen (D-080) — ein gemeinsamer Zustand für alle
+  // sechs Splitviews (Träger/Stiftungen/Projekte/Anträge/Bausteine/Prompts).
+  if (localStorage.getItem(FR_LIST_COLLAPSED_KEY) === '1') {
+    document.querySelectorAll('.splitview').forEach(el => el.classList.add('list-collapsed'));
+  }
+  document.querySelectorAll('.split-list-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const collapsed = !btn.closest('.splitview').classList.contains('list-collapsed');
+      document.querySelectorAll('.splitview').forEach(el => el.classList.toggle('list-collapsed', collapsed));
+      localStorage.setItem(FR_LIST_COLLAPSED_KEY, collapsed ? '1' : '0');
+    });
+  });
 
   // Gear-Menü
   $('gear-settings').addEventListener('click', () => { closeModal('gear-modal'); openSettingsModal(); });
