@@ -181,6 +181,17 @@ main#main {
   font-size: 20px; font-weight: 300; cursor: pointer;
   font-family: inherit; line-height: 1;
 }
+/* D-083 (Phase K): gleiche visuelle Sprache wie .split-add-btn (blau,
+   gleiche Grösse) — eigenes Icon statt "+", damit "Neu anlegen" vs.
+   "Aus Recherche importieren" unterscheidbar bleiben. */
+.split-import-btn {
+  flex-shrink: 0; width: 40px;
+  border-radius: 10px; border: none;
+  background: var(--accent); color: #000;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.split-import-btn svg { width: 18px; height: 18px; }
 
 /* D-080 (Phase H, Folgewunsch): Listen-Spalte der Splitviews (Träger/
    Stiftungen/Projekte/Anträge/Bausteine/Prompts) einklappbar — analog zur
@@ -736,6 +747,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div class="split-list-header">
           <input type="search" class="split-search" id="fnd-search" placeholder="Stiftung suchen…">
           <button type="button" class="split-add-btn" id="fnd-split-add" title="Neue Stiftung">+</button>
+          <button type="button" class="split-import-btn" id="fnd-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
         </div>
         <div class="filter-bar">
           <select id="fnd-filter-status">
@@ -780,6 +792,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div class="split-list-header">
           <input type="search" class="split-search" id="prj-search" placeholder="Projekt suchen…">
           <button type="button" class="split-add-btn" id="prj-split-add" title="Neues Projekt">+</button>
+          <button type="button" class="split-import-btn" id="prj-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
         </div>
         <div class="filter-bar">
           <select id="prj-filter-traeger"><option value="">Alle Träger</option></select>
@@ -826,6 +839,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div class="split-list-header">
           <input type="search" class="split-search" id="app-search" placeholder="Antrag suchen…">
           <button type="button" class="split-add-btn" id="app-split-add" title="Neuer Antrag">+</button>
+          <button type="button" class="split-import-btn" id="app-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
         </div>
         <div class="filter-bar">
           <select id="app-filter-traeger"><option value="">Alle Träger</option></select>
@@ -888,6 +902,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div class="split-list">
         <div class="split-list-header">
           <button type="button" class="split-add-btn" id="blk-split-add" title="Neuer Baustein">+</button>
+          <button type="button" class="split-import-btn" id="blk-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
         </div>
         <div class="filter-bar">
           <select id="blk-filter-traeger"><option value="">Alle Träger</option></select>
@@ -918,6 +933,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div class="split-list">
         <div class="split-list-header">
           <button type="button" class="split-add-btn" id="prm-split-add" title="Neue Prompt-Vorlage">+</button>
+          <button type="button" class="split-import-btn" id="prm-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
         </div>
         <div id="prm-list"></div>
       </div>
@@ -999,6 +1015,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <option value="blocks">Bausteine</option>
       <option value="promptTemplates">Prompts</option>
     </select>
+
+    <!-- D-083 (Phase K): passende Recherche-Prompts aus der Bibliothek
+         zum Kopieren, bevor man das JSON-Feld unten befüllt. -->
+    <div class="modal-section">
+      <div class="modal-section-title">Passender Prompt</div>
+      <div id="imp-prompt-hint" style="font-size:13px;color:var(--text-dim);margin-bottom:8px"></div>
+      <div id="imp-prompt-list"></div>
+    </div>
+
     <label for="imp-json">JSON</label>
     <textarea id="imp-json" style="min-height:160px" placeholder="[ { ... }, { ... } ]"></textarea>
     <div class="modal-buttons" style="justify-content:flex-start">
@@ -1278,6 +1303,16 @@ const FRIST_TYP_LABEL = { laufend: 'Laufend', stichtag: 'Stichtag', sitzungen: '
 const MEHRFACHFOERDERUNG_LABEL = { // D-081
   erlaubt: 'Erlaubt', meldepflichtig: 'Meldepflichtig', ausgeschlossen: 'Ausgeschlossen', unbekannt: 'Unbekannt'
 };
+// D-083 (Phase K): Datentyp-Zuordnung für Prompt-Vorlagen (promptTemplates.
+// datentyp) — dieselben fünf Schlüssel wie IMPORT_RESOLVERS/imp-type.
+const IMPORT_TYPE_LABEL = {
+  foundations: 'Stiftungen', projects: 'Projekte', applications: 'Anträge',
+  blocks: 'Bausteine', promptTemplates: 'Prompts'
+};
+const IMPORT_TYPE_NOUN = { // für den Hinweistext "... Screenshots {NOUN} in Claude Chat."
+  foundations: 'der Stiftung', projects: 'des Projekts', applications: 'des Antrags',
+  blocks: 'des Bausteins', promptTemplates: 'der Prompt-Vorlage'
+};
 
 const BLOCKTYPE_LABEL = {
   cv:'CV', traegerschaft:'Trägerschaft', methodik:'Methodik', wirkungslogik:'Wirkungslogik',
@@ -1338,10 +1373,27 @@ function debounce(fn, ms) {
 // eigenen "Hinzufügen"-Button. Pflichtfeld-Validierung schlägt beim
 // Auto-Save still fehl (kein Alert-Popup mitten im Tippen) — der jeweilige
 // saveFn kümmert sich selbst darum (return ohne showAlert).
+//
+// D-082 (Bugfix): Die Panel-Container (z. B. #prm-workspace,
+// #fndw-panel-overview) werden bei jeder Datensatz-Auswahl nur per
+// innerHTML neu befüllt, der Container-Node selbst bleibt bestehen.
+// wireAutoSave() wird aber bei JEDEM Rendern erneut aufgerufen — wenn dabei
+// jedes Mal neue addEventListener()-Aufrufe auf denselben Container
+// gestapelt würden, bliebe die alte, auf die vorherige Datensatz-Id
+// geschlossene saveFn für immer aktiv. Eingabe im aktuell offenen Datensatz
+// hätte dann ALLE bisher besuchten Datensätze dieses Panels gleichzeitig
+// überschrieben (reproduzierter Bug: zweiten Prompt anlegen/bearbeiten
+// überschrieb den ersten). Fix: Listener nur EINMAL pro Container
+// verdrahten (Flag am Node), die eigentliche Save-Funktion liegt als
+// austauschbare Referenz auf dem Node und wird bei jedem Aufruf aktuell
+// gehalten — Events feuern immer die zuletzt hinterlegte Funktion.
 function wireAutoSave(containerId, saveFn) {
   const container = $(containerId);
   if (!container) return;
-  const debouncedSave = debounce(saveFn, 800);
+  container._autoSaveFn = saveFn;
+  if (container._autoSaveWired) return;
+  container._autoSaveWired = true;
+  const debouncedSave = debounce(() => container._autoSaveFn && container._autoSaveFn(), 800);
   container.addEventListener('input', (e) => {
     if (e.target.closest('.sub-add-form, .modal-section')) return;
     const t = e.target;
@@ -1350,7 +1402,7 @@ function wireAutoSave(containerId, saveFn) {
   container.addEventListener('change', (e) => {
     if (e.target.closest('.sub-add-form, .modal-section')) return;
     const t = e.target;
-    if (t.tagName === 'SELECT' || (t.tagName === 'INPUT' && (t.type === 'checkbox' || t.type === 'date'))) saveFn();
+    if (t.tagName === 'SELECT' || (t.tagName === 'INPUT' && (t.type === 'checkbox' || t.type === 'date'))) container._autoSaveFn();
   });
   container.addEventListener('keydown', (e) => {
     if (e.target.classList.contains('tag-input-field') && (e.key === 'Enter' || e.key === ',')) debouncedSave();
@@ -1451,6 +1503,32 @@ function downloadTextFile(filename, content) {
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
+}
+
+// D-083 (Phase K): erste Zwischenablage-Nutzung der App — navigator.clipboard
+// braucht einen sicheren Kontext (https/localhost) und User-Geste; Fallback
+// über ein unsichtbares Textfeld + execCommand('copy') für Umgebungen ohne
+// Clipboard-API (ältere WebViews o. Ä.).
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) { /* fällt durch zum Fallback */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch (e) {
+    return false;
+  }
 }
 
 function fmtChf(n) {
@@ -5125,6 +5203,7 @@ function renderPrompts() {
     $('prm-list').innerHTML = list.map(p => `
       <div class="record-card${p.id === selectedPtId ? ' selected' : ''}" data-id="${escapeHtml(p.id)}">
         <div class="card-title">${escapeHtml(p.title || 'Ohne Titel')}</div>
+        ${p.datentyp ? `<div class="card-sub">${escapeHtml(IMPORT_TYPE_LABEL[p.datentyp] || p.datentyp)}</div>` : ''}
       </div>`).join('');
     $('prm-list').querySelectorAll('.record-card').forEach(el =>
       el.addEventListener('click', () => selectPrompt(el.dataset.id))
@@ -5154,11 +5233,16 @@ function closePromptWorkspace() {
 }
 
 function renderPromptWorkspace(p) {
+  const datentypOpts = ['<option value="">— kein/allgemein —</option>']
+    .concat(Object.keys(IMPORT_TYPE_LABEL).map(k => `<option value="${k}" ${p.datentyp === k ? 'selected' : ''}>${IMPORT_TYPE_LABEL[k]}</option>`))
+    .join('');
   $('prm-workspace').innerHTML = `
     <div class="workspace-header"><h2>Prompt-Vorlage</h2></div>
     <div class="workspace-panel active">
       <label for="prm-title">Titel</label>
       <input type="text" id="prm-title" autocomplete="off" value="${escapeHtml(p.title || '')}">
+      <label for="prm-datentyp">Datentyp (zeigt diesen Prompt im passenden Import-Fenster, D-083)</label>
+      <select id="prm-datentyp">${datentypOpts}</select>
       <label for="prm-body">Text</label>
       <textarea id="prm-body" style="min-height:260px">${escapeHtml(p.body || '')}</textarea>
       <div class="modal-buttons">
@@ -5178,6 +5262,7 @@ function savePrompt(id) {
   if (!title) return; // Auto-Save: Pflichtfeld fehlt, still überspringen
   p.title = title;
   p.body = getV('prm-body') || '';
+  p.datentyp = getV('prm-datentyp') || '';
   p.modified = nowIso();
   upsertRecord('promptTemplates', p);
   renderPrompts();
@@ -5824,7 +5909,11 @@ function resolvePromptImportRow(row) {
   if (!titel) errors.push('titel fehlt');
   const text = row.text ?? row.body ?? '';
   const existing = localData.promptTemplates.find(p => !p.deleted && normStr(p.title) === normStr(titel));
-  const fields = { title: titel || existing?.title || '', body: text || existing?.body || '' };
+  const fields = {
+    title: titel || existing?.title || '',
+    body: text || existing?.body || '',
+    datentyp: row.datentyp ?? existing?.datentyp ?? '' // D-083
+  };
   return { errors, existing, fields, label: titel || '(ohne Titel)' };
 }
 
@@ -5837,14 +5926,48 @@ const IMPORT_RESOLVERS = {
 };
 const IMPORT_ID_PREFIX = { foundations: 'fnd', projects: 'prj', applications: 'app', blocks: 'blk', promptTemplates: 'pt' };
 
-function openImportModal() {
+// D-083 (Phase K): optional vorbelegter Datentyp, wenn das Modal über einen
+// der fünf Import-Buttons neben "+" geöffnet wird (statt übers Gear-Menü).
+function openImportModal(preselectType) {
   $('imp-json').value = '';
   $('imp-preview').innerHTML = '';
   $('imp-result').className = 'modal-result';
   $('imp-result').textContent = '';
   $('imp-commit-btn').disabled = true;
   importPreviewRows = [];
+  if (preselectType) setV('imp-type', preselectType);
+  renderMatchingPrompts();
   openModal('import-modal');
+}
+
+// D-083: Prompt-Vorlagen mit passendem datentyp zur aktuellen imp-type-
+// Auswahl anzeigen, mit Kopieren-Button. Karten-Liste statt Dropdown —
+// funktioniert auch bei nur einem Treffer und passt zum sonstigen
+// Sub-Item-Listenmuster der App.
+function renderMatchingPrompts() {
+  const type = getV('imp-type');
+  const noun = IMPORT_TYPE_NOUN[type] || 'des Datensatzes';
+  $('imp-prompt-hint').textContent = `Kopiere den Prompt zusammen mit PDFs und Screenshots ${noun} in Claude Chat.`;
+  const matches = localData.promptTemplates.filter(p => !p.deleted && p.datentyp === type);
+  if (!matches.length) {
+    $('imp-prompt-list').innerHTML = `<p style="font-size:13px;color:var(--text-dim)">Noch kein Prompt für diesen Datentyp in der Bibliothek hinterlegt (Bibliothek → Prompts).</p>`;
+    return;
+  }
+  $('imp-prompt-list').innerHTML = matches.map(p => `
+    <div class="sub-item">
+      <div class="sub-item-main">
+        <div class="sub-item-name">${escapeHtml(p.title || 'Ohne Titel')}</div>
+      </div>
+      <button type="button" class="sub-ok" data-copy-prompt="${escapeHtml(p.id)}" style="width:auto;white-space:nowrap">Kopieren</button>
+    </div>`).join('');
+  $('imp-prompt-list').querySelectorAll('[data-copy-prompt]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const p = localData.promptTemplates.find(x => x.id === btn.dataset.copyPrompt);
+      if (!p) return;
+      const ok = await copyToClipboard(p.body || '');
+      showToast(ok ? 'Prompt kopiert' : 'Kopieren fehlgeschlagen');
+    });
+  });
 }
 
 function previewImport() {
@@ -6066,6 +6189,12 @@ function bindEvents() {
   $('prj-split-add').addEventListener('click', () => createNewProject());
   $('blk-split-add').addEventListener('click', () => { const newBlkId = createNewBlock(); renderBlocks(); selectBlock(newBlkId); });
 
+  // Import-Buttons je Splitview (D-083, Phase K) — Träger bewusst ausgenommen,
+  // Träger können nicht importiert werden (siehe Import-Modal-Hinweistext).
+  $('fnd-split-import').addEventListener('click', () => openImportModal('foundations'));
+  $('prj-split-import').addEventListener('click', () => openImportModal('projects'));
+  $('blk-split-import').addEventListener('click', () => openImportModal('blocks'));
+
   // Suche (nur Stiftungen/Projekte, D-036 — Listen, die tatsächlich wachsen)
   $('fnd-search').addEventListener('input', renderFoundations);
   $('prj-search').addEventListener('input', renderProjects);
@@ -6127,6 +6256,7 @@ function bindEvents() {
   $('imp-preview-btn').addEventListener('click', previewImport);
   $('imp-commit-btn').addEventListener('click', commitImport);
   $('imp-cancel').addEventListener('click', () => closeModal('import-modal'));
+  $('imp-type').addEventListener('change', renderMatchingPrompts); // D-083
 
   // Hinweis-Dialog (D-070)
   $('alert-ok').addEventListener('click', () => closeModal('alert-modal'));
@@ -6163,6 +6293,7 @@ function bindEvents() {
   // D-061: Prompts sind keine Modals mehr — Feld-Bindings werden pro Render
   // in renderPromptWorkspace() gesetzt (wie bei Bausteinen).
   $('prm-split-add').addEventListener('click', () => { const newPtId = createNewPrompt(); renderPrompts(); selectPrompt(newPtId); });
+  $('prm-split-import').addEventListener('click', () => openImportModal('promptTemplates'));
 
   // D-059: Block-Bearbeitung ist keine Modal mehr — Feld-Bindings werden pro
   // Render in renderBlockWorkspace() gesetzt (wie bei Träger/Stiftung/Projekt/
@@ -6186,6 +6317,7 @@ function bindEvents() {
   // werden pro Antrag frisch in renderAppOverviewTab() gebunden, analog
   // Träger/Stiftung/Projekt-Workspace)
   $('app-split-add').addEventListener('click', () => createNewApplication());
+  $('app-split-import').addEventListener('click', () => openImportModal('applications'));
   $('app-search').addEventListener('input', renderApplicationsSplitList);
   document.querySelectorAll('#app-workspace-content .workspace-tab').forEach(btn =>
     btn.addEventListener('click', () => switchAppTab(btn.dataset.atab))
