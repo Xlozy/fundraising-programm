@@ -901,6 +901,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="splitview">
       <div class="split-list">
         <div class="split-list-header">
+          <input type="search" class="split-search" id="blk-search" placeholder="Baustein suchen…">
           <button type="button" class="split-add-btn" id="blk-split-add" title="Neuer Baustein">+</button>
           <button type="button" class="split-import-btn" id="blk-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
         </div>
@@ -932,6 +933,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="splitview">
       <div class="split-list">
         <div class="split-list-header">
+          <input type="search" class="split-search" id="prm-search" placeholder="Prompt suchen…">
           <button type="button" class="split-add-btn" id="prm-split-add" title="Neue Prompt-Vorlage">+</button>
           <button type="button" class="split-import-btn" id="prm-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
         </div>
@@ -961,7 +963,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   <div class="modal" style="padding:8px 0 calc(8px + env(safe-area-inset-bottom))">
     <button class="gear-action" id="gear-settings">Sync-Einstellungen</button>
     <button class="gear-action" id="gear-passung" style="display:none">Passung zuordnen (Migration)</button>
-    <button class="gear-action" id="gear-import">Daten importieren</button>
     <button class="gear-action" id="gear-diag">Diagnose</button>
     <div style="margin:4px 16px;border-top:1px solid var(--border)"></div>
     <button class="gear-action" style="color:var(--text-dim)" id="gear-cancel">Abbrechen</button>
@@ -2512,9 +2513,14 @@ function renderFndOverviewTab(f) {
   $('fndw-frist-toggle').addEventListener('click', () => $('fndw-frist-form').classList.add('show'));
   $('fndw-frist-cancel').addEventListener('click', () => {
     $('fndw-frist-form').classList.remove('show');
+    fndFristEditId = null;
+    $('fndw-frist-save').textContent = 'Hinzufügen';
     setV('fndw-frist-datum',''); setV('fndw-frist-bezeichnung',''); $('fndw-frist-wiederkehrend').checked = false;
   });
-  $('fndw-frist-save').addEventListener('click', () => addFrist(f.id));
+  $('fndw-frist-save').addEventListener('click', () => {
+    if (fndFristEditId) updateFrist(f.id, fndFristEditId);
+    else addFrist(f.id);
+  });
 
   wireAutoSave('fndw-panel-overview', () => saveFndOverview(f.id));
 }
@@ -2522,7 +2528,11 @@ function renderFndOverviewTab(f) {
 // D-081 (Phase I): Fristen-Unterliste, analog zum Meilensteine-Muster
 // (Projekt-Workspace) — eigene Hinzufügen/Löschen-Funktion statt Teil des
 // allgemeinen Auto-Save, da .modal-section-Felder davon ausgenommen sind.
+// D-085 (Bugfix): Bearbeiten ergänzt (analog Anforderungsprofil, D-078).
+let fndFristEditId = null;
+
 function renderFristenSubList(f) {
+  fndFristEditId = null;
   const list = (f.fristen || []).slice().sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
   $('fndw-frist-list').innerHTML = list.length
     ? list.map(fr => `
@@ -2531,12 +2541,27 @@ function renderFristenSubList(f) {
           <div class="sub-item-name">${fr.datum ? fmtDate(fr.datum) : 'kein Datum'}${fr.wiederkehrend ? ' · wiederkehrend' : ''}</div>
           <div class="sub-item-sub">${fr.bezeichnung ? escapeHtml(fr.bezeichnung) : 'keine Bezeichnung'}</div>
         </div>
+        <button class="sub-item-edit" data-frist="${escapeHtml(fr.id)}" title="Frist bearbeiten">✎</button>
         <button class="sub-item-del" data-frist="${escapeHtml(fr.id)}" title="Frist entfernen">×</button>
       </div>`).join('')
     : '<p style="font-size:13px;color:var(--text-dim)">Keine Fristen erfasst.</p>';
+  $('fndw-frist-list').querySelectorAll('.sub-item-edit').forEach(btn =>
+    btn.addEventListener('click', () => startEditFrist(f, btn.dataset.frist))
+  );
   $('fndw-frist-list').querySelectorAll('.sub-item-del').forEach(btn =>
     btn.addEventListener('click', () => deleteFrist(f.id, btn.dataset.frist))
   );
+}
+
+function startEditFrist(f, fristId) {
+  const fr = (f.fristen || []).find(x => x.id === fristId);
+  if (!fr) return;
+  fndFristEditId = fristId;
+  setV('fndw-frist-datum', fr.datum || '');
+  setV('fndw-frist-bezeichnung', fr.bezeichnung || '');
+  $('fndw-frist-wiederkehrend').checked = !!fr.wiederkehrend;
+  $('fndw-frist-save').textContent = 'Speichern';
+  $('fndw-frist-form').classList.add('show');
 }
 
 function addFrist(foundationId) {
@@ -2553,6 +2578,25 @@ function addFrist(foundationId) {
   });
   f.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
   setV('fndw-frist-datum',''); setV('fndw-frist-bezeichnung',''); $('fndw-frist-wiederkehrend').checked = false;
+  $('fndw-frist-form').classList.remove('show');
+  renderFristenSubList(f);
+  renderFoundations();
+  syncNow({ force: true });
+}
+
+function updateFrist(foundationId, fristId) {
+  const datum = getV('fndw-frist-datum');
+  if (!datum) { showAlert('Datum ist ein Pflichtfeld.'); return; }
+  const f = localData.foundations.find(x => x.id === foundationId);
+  if (!f) return;
+  const fr = (f.fristen || []).find(x => x.id === fristId);
+  if (!fr) return;
+  fr.datum = datum;
+  fr.bezeichnung = getV('fndw-frist-bezeichnung') || '';
+  fr.wiederkehrend = $('fndw-frist-wiederkehrend').checked;
+  f.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
+  setV('fndw-frist-datum',''); setV('fndw-frist-bezeichnung',''); $('fndw-frist-wiederkehrend').checked = false;
+  $('fndw-frist-save').textContent = 'Hinzufügen';
   $('fndw-frist-form').classList.remove('show');
   renderFristenSubList(f);
   renderFoundations();
@@ -2814,7 +2858,12 @@ function removeProfileRequirement(foundationId, index) {
 
 // ── Kontakte (bestehende Personen-Verknüpfung, D-042) ───────────────────────
 
+// D-085 (Bugfix): Bearbeiten-Modus fürs Kontakt-Formular — null heisst
+// "Hinzufügen", sonst die id des bearbeiteten Kontakts (analog D-078).
+let fndPersonEditId = null;
+
 function renderFndContactsTab(f) {
+  fndPersonEditId = null;
   $('fndw-panel-contacts').innerHTML = `
     <div id="fndw-persons-list"></div>
     <button type="button" class="sub-add-btn" id="fndw-per-toggle">+ Kontakt hinzufügen</button>
@@ -2837,6 +2886,8 @@ function renderFndContactsTab(f) {
   $('fndw-per-toggle').addEventListener('click', () => $('fndw-per-form').classList.add('show'));
   $('fndw-per-cancel').addEventListener('click', () => {
     $('fndw-per-form').classList.remove('show');
+    fndPersonEditId = null;
+    $('fndw-per-save').textContent = 'Hinzufügen';
     setV('fndw-per-name',''); setV('fndw-per-rolle',''); setV('fndw-per-email',''); setV('fndw-per-telefon','');
   });
   $('fndw-per-save').addEventListener('click', () => saveFndPerson(f.id));
@@ -2851,9 +2902,13 @@ function renderFndPersonsSubList(foundationId) {
           <div class="sub-item-name">${escapeHtml(p.name)}</div>
           <div class="sub-item-sub">${escapeHtml(p.rolle || '')}${p.email ? ' · ' + escapeHtml(p.email) : ''}</div>
         </div>
+        <button class="sub-item-edit" data-pid="${escapeHtml(p.id)}" title="Kontakt bearbeiten">✎</button>
         <button class="sub-item-del" data-pid="${escapeHtml(p.id)}" title="Kontakt löschen">×</button>
       </div>`).join('')
     : '<p style="font-size:13px;color:var(--text-dim)">Noch keine Kontakte.</p>';
+  $('fndw-persons-list').querySelectorAll('.sub-item-edit').forEach(btn =>
+    btn.addEventListener('click', () => startEditFndPerson(btn.dataset.pid))
+  );
   $('fndw-persons-list').querySelectorAll('.sub-item-del').forEach(btn =>
     btn.addEventListener('click', async () => {
       if (!(await showConfirm('Kontakt löschen?'))) return;
@@ -2864,22 +2919,45 @@ function renderFndPersonsSubList(foundationId) {
   );
 }
 
+function startEditFndPerson(personId) {
+  const p = localData.persons.find(x => x.id === personId);
+  if (!p) return;
+  fndPersonEditId = personId;
+  setV('fndw-per-name', p.name || '');
+  setV('fndw-per-rolle', p.rolle || '');
+  setV('fndw-per-email', p.email || '');
+  setV('fndw-per-telefon', p.telefon || '');
+  $('fndw-per-save').textContent = 'Speichern';
+  $('fndw-per-form').classList.add('show');
+}
+
 function saveFndPerson(foundationId) {
   const name = getV('fndw-per-name');
   if (!name) { showAlert('Name ist ein Pflichtfeld.'); return; }
-  const p = {
-    id: newId('per'), name,
-    rolle: getV('fndw-per-rolle') || null,
-    email: getV('fndw-per-email') || null,
-    telefon: getV('fndw-per-telefon') || null,
-    organisationId: foundationId,
-    modified: nowIso(), deleted: false
-  };
-  if (!Array.isArray(localData.persons)) localData.persons = [];
-  localData.persons.push(p);
+  const rolle = getV('fndw-per-rolle') || null;
+  const email = getV('fndw-per-email') || null;
+  const telefon = getV('fndw-per-telefon') || null;
+
+  if (fndPersonEditId) {
+    const existing = localData.persons.find(x => x.id === fndPersonEditId);
+    if (existing) {
+      existing.name = name; existing.rolle = rolle; existing.email = email; existing.telefon = telefon;
+      existing.modified = nowIso();
+    }
+  } else {
+    const p = {
+      id: newId('per'), name, rolle, email, telefon,
+      organisationId: foundationId,
+      modified: nowIso(), deleted: false
+    };
+    if (!Array.isArray(localData.persons)) localData.persons = [];
+    localData.persons.push(p);
+  }
   localData.modified = nowIso();
   saveLocalData();
+  fndPersonEditId = null;
   setV('fndw-per-name',''); setV('fndw-per-rolle',''); setV('fndw-per-email',''); setV('fndw-per-telefon','');
+  $('fndw-per-save').textContent = 'Hinzufügen';
   $('fndw-per-form').classList.remove('show');
   renderFndPersonsSubList(foundationId);
   syncNow({ force: true });
@@ -3096,9 +3174,14 @@ function renderProjectOverviewTab(p) {
   $('prjw-ms-toggle').addEventListener('click', () => $('prjw-ms-form').classList.add('show'));
   $('prjw-ms-cancel').addEventListener('click', () => {
     $('prjw-ms-form').classList.remove('show');
+    prjMsEditId = null;
+    $('prjw-ms-save').textContent = 'Hinzufügen';
     setV('prjw-ms-datum',''); setV('prjw-ms-bezeichnung','');
   });
-  $('prjw-ms-save').addEventListener('click', () => saveMeilenstein(p.id));
+  $('prjw-ms-save').addEventListener('click', () => {
+    if (prjMsEditId) updateMeilenstein(p.id, prjMsEditId);
+    else saveMeilenstein(p.id);
+  });
 
   wireAutoSave('prjw-panel-overview', () => saveProjectOverview(p.id));
 }
@@ -3136,7 +3219,11 @@ async function deleteProjectFromWorkspace(id) {
   syncNow({ force: true });
 }
 
+// D-085 (Bugfix): Bearbeiten-Modus fürs Meilenstein-Formular.
+let prjMsEditId = null;
+
 function renderMeilensteineSubList(p) {
+  prjMsEditId = null;
   const list = (p.meilensteine || []).slice().sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
   $('prjw-ms-list').innerHTML = list.length
     ? list.map(m => `
@@ -3145,12 +3232,26 @@ function renderMeilensteineSubList(p) {
           <div class="sub-item-name">${escapeHtml(m.bezeichnung)}</div>
           <div class="sub-item-sub">${m.datum ? fmtDate(m.datum) : 'kein Datum'}</div>
         </div>
+        <button class="sub-item-edit" data-ms="${escapeHtml(m.id)}" title="Meilenstein bearbeiten">✎</button>
         <button class="sub-item-del" data-ms="${escapeHtml(m.id)}" title="Meilenstein entfernen">×</button>
       </div>`).join('')
     : '<p style="font-size:13px;color:var(--text-dim)">Keine Meilensteine.</p>';
+  $('prjw-ms-list').querySelectorAll('.sub-item-edit').forEach(btn =>
+    btn.addEventListener('click', () => startEditMeilenstein(p, btn.dataset.ms))
+  );
   $('prjw-ms-list').querySelectorAll('.sub-item-del').forEach(btn =>
     btn.addEventListener('click', () => deleteMeilenstein(p.id, btn.dataset.ms))
   );
+}
+
+function startEditMeilenstein(p, msId) {
+  const m = (p.meilensteine || []).find(x => x.id === msId);
+  if (!m) return;
+  prjMsEditId = msId;
+  setV('prjw-ms-datum', m.datum || '');
+  setV('prjw-ms-bezeichnung', m.bezeichnung || '');
+  $('prjw-ms-save').textContent = 'Speichern';
+  $('prjw-ms-form').classList.add('show');
 }
 
 function saveMeilenstein(projectId) {
@@ -3162,6 +3263,23 @@ function saveMeilenstein(projectId) {
   p.meilensteine.push({ id: newId('ms'), datum: getV('prjw-ms-datum') || null, bezeichnung });
   p.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
   setV('prjw-ms-datum',''); setV('prjw-ms-bezeichnung','');
+  $('prjw-ms-form').classList.remove('show');
+  renderMeilensteineSubList(p);
+  syncNow({ force: true });
+}
+
+function updateMeilenstein(projectId, msId) {
+  const bezeichnung = getV('prjw-ms-bezeichnung');
+  if (!bezeichnung) { showAlert('Bezeichnung ist ein Pflichtfeld.'); return; }
+  const p = localData.projects.find(x => x.id === projectId);
+  if (!p) return;
+  const m = (p.meilensteine || []).find(x => x.id === msId);
+  if (!m) return;
+  m.datum = getV('prjw-ms-datum') || null;
+  m.bezeichnung = bezeichnung;
+  p.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
+  setV('prjw-ms-datum',''); setV('prjw-ms-bezeichnung','');
+  $('prjw-ms-save').textContent = 'Hinzufügen';
   $('prjw-ms-form').classList.remove('show');
   renderMeilensteineSubList(p);
   syncNow({ force: true });
@@ -3269,6 +3387,7 @@ async function copyBlockToLibrary(blockId) {
 // ── Budget (D-032/D-033/D-044) ─────────────────────────────────────────────
 
 function renderProjectBudgetTab(p) {
+  prjExpEditId = null; prjFinEditId = null;
   const coverage = computeProjectCoverage(p);
   const expenses = p.expenses || [];
   const fp = p.financingPlan || [];
@@ -3280,10 +3399,15 @@ function renderProjectBudgetTab(p) {
           <div class="sub-item-name">${escapeHtml(e.position)}</div>
           <div class="sub-item-sub">${fmtChf(e.summeChf)}</div>
         </div>
+        <button class="sub-item-edit" data-exp-edit="${escapeHtml(e.id)}" title="Position bearbeiten">✎</button>
         <button class="sub-item-del" data-exp="${escapeHtml(e.id)}" title="Position entfernen">×</button>
       </div>`).join('')
     : '<p style="font-size:13px;color:var(--text-dim)">Noch keine Ausgaben-Positionen.</p>';
 
+  // D-085: Posten mit applicationId stammen aus einem verknüpften Antrag
+  // und werden von saveApp()/deleteApp() automatisch mitgeführt (D-049) —
+  // manuelles Bearbeiten würde beim nächsten Antrags-Speichern wieder
+  // überschrieben, daher dort bewusst kein Bearbeiten-Button.
   const fpHtml = fp.length
     ? fp.map(x => `
       <div class="sub-item">
@@ -3291,6 +3415,7 @@ function renderProjectBudgetTab(p) {
           <div class="sub-item-name">${escapeHtml(x.quelle)}</div>
           <div class="sub-item-sub">${fmtChf(x.summeChf)} · ${badge(x.status||'offen')}</div>
         </div>
+        ${!x.applicationId ? `<button class="sub-item-edit" data-fin-edit="${escapeHtml(x.id)}" title="Posten bearbeiten">✎</button>` : ''}
         <button class="sub-item-del" data-fin="${escapeHtml(x.id)}" title="Posten entfernen">×</button>
       </div>`).join('')
     : '<p style="font-size:13px;color:var(--text-dim)">Noch keine Einnahmen-Posten.</p>';
@@ -3355,22 +3480,63 @@ function renderProjectBudgetTab(p) {
   $('prjw-panel-budget').querySelectorAll('[data-exp]').forEach(btn =>
     btn.addEventListener('click', () => deleteExpense(p.id, btn.dataset.exp))
   );
+  $('prjw-panel-budget').querySelectorAll('[data-exp-edit]').forEach(btn =>
+    btn.addEventListener('click', () => startEditExpense(p, btn.dataset.expEdit))
+  );
   $('prjw-panel-budget').querySelectorAll('[data-fin]').forEach(btn =>
     btn.addEventListener('click', () => deleteFinancingItem(p.id, btn.dataset.fin))
+  );
+  $('prjw-panel-budget').querySelectorAll('[data-fin-edit]').forEach(btn =>
+    btn.addEventListener('click', () => startEditFinancingItem(p, btn.dataset.finEdit))
   );
   $('prjw-exp-toggle').addEventListener('click', () => $('prjw-exp-form').classList.add('show'));
   $('prjw-exp-cancel').addEventListener('click', () => {
     $('prjw-exp-form').classList.remove('show');
+    prjExpEditId = null;
+    $('prjw-exp-save').textContent = 'Hinzufügen';
     setV('prjw-exp-position',''); setV('prjw-exp-summe','');
   });
-  $('prjw-exp-save').addEventListener('click', () => saveExpenseItem(p.id));
+  $('prjw-exp-save').addEventListener('click', () => {
+    if (prjExpEditId) updateExpenseItem(p.id, prjExpEditId);
+    else saveExpenseItem(p.id);
+  });
   $('prjw-fin-toggle').addEventListener('click', () => $('prjw-fin-form').classList.add('show'));
   $('prjw-fin-cancel').addEventListener('click', () => {
     $('prjw-fin-form').classList.remove('show');
+    prjFinEditId = null;
+    $('prjw-fin-save').textContent = 'Hinzufügen';
     setV('prjw-fin-quelle',''); setV('prjw-fin-summe',''); setV('prjw-fin-status','offen');
   });
-  $('prjw-fin-save').addEventListener('click', () => saveFinancingItem(p.id));
+  $('prjw-fin-save').addEventListener('click', () => {
+    if (prjFinEditId) updateFinancingItem(p.id, prjFinEditId);
+    else saveFinancingItem(p.id);
+  });
 }
+
+function startEditExpense(p, expId) {
+  const e = (p.expenses || []).find(x => x.id === expId);
+  if (!e) return;
+  prjExpEditId = expId;
+  setV('prjw-exp-position', e.position || '');
+  setV('prjw-exp-summe', e.summeChf ?? '');
+  $('prjw-exp-save').textContent = 'Speichern';
+  $('prjw-exp-form').classList.add('show');
+}
+
+function startEditFinancingItem(p, fpId) {
+  const x = (p.financingPlan || []).find(v => v.id === fpId);
+  if (!x) return;
+  prjFinEditId = fpId;
+  setV('prjw-fin-quelle', x.quelle || '');
+  setV('prjw-fin-summe', x.summeChf ?? '');
+  setV('prjw-fin-status', x.status || 'offen');
+  $('prjw-fin-save').textContent = 'Speichern';
+  $('prjw-fin-form').classList.add('show');
+}
+
+// D-085 (Bugfix): Bearbeiten-Modi für Ausgaben/Einnahmen-Formulare.
+let prjExpEditId = null;
+let prjFinEditId = null;
 
 function saveExpenseItem(projectId) {
   const position = getV('prjw-exp-position');
@@ -3380,6 +3546,22 @@ function saveExpenseItem(projectId) {
   if (!Array.isArray(p.expenses)) p.expenses = [];
   p.expenses.push({ id: newId('exp'), position, summeChf: parseFloat10(getV('prjw-exp-summe')) });
   p.gesamtbudgetChf = computeProjectCoverage(p).bedarf; // D-033: nur noch Cache des berechneten Werts
+  p.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
+  setV('prjw-exp-position',''); setV('prjw-exp-summe','');
+  renderProjectBudgetTab(p);
+  syncNow({ force: true });
+}
+
+function updateExpenseItem(projectId, expId) {
+  const position = getV('prjw-exp-position');
+  if (!position) { showAlert('Position ist ein Pflichtfeld.'); return; }
+  const p = localData.projects.find(x => x.id === projectId);
+  if (!p) return;
+  const e = (p.expenses || []).find(x => x.id === expId);
+  if (!e) return;
+  e.position = position;
+  e.summeChf = parseFloat10(getV('prjw-exp-summe'));
+  p.gesamtbudgetChf = computeProjectCoverage(p).bedarf;
   p.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
   setV('prjw-exp-position',''); setV('prjw-exp-summe','');
   renderProjectBudgetTab(p);
@@ -3408,6 +3590,22 @@ function saveFinancingItem(projectId) {
     status: getV('prjw-fin-status') || 'offen',
     applicationId: null
   });
+  p.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
+  setV('prjw-fin-quelle',''); setV('prjw-fin-summe',''); setV('prjw-fin-status','offen');
+  renderProjectBudgetTab(p);
+  syncNow({ force: true });
+}
+
+function updateFinancingItem(projectId, fpId) {
+  const quelle = getV('prjw-fin-quelle');
+  if (!quelle) { showAlert('Quelle ist ein Pflichtfeld.'); return; }
+  const p = localData.projects.find(x => x.id === projectId);
+  if (!p) return;
+  const x = (p.financingPlan || []).find(v => v.id === fpId);
+  if (!x || x.applicationId) return; // D-085: aus Antrag synchronisierte Posten nicht manuell überschreibbar
+  x.quelle = quelle;
+  x.summeChf = parseFloat10(getV('prjw-fin-summe'));
+  x.status = getV('prjw-fin-status') || 'offen';
   p.modified = nowIso(); localData.modified = nowIso(); saveLocalData();
   setV('prjw-fin-quelle',''); setV('prjw-fin-summe',''); setV('prjw-fin-status','offen');
   renderProjectBudgetTab(p);
@@ -4143,6 +4341,7 @@ function populateBlkTypeFilter() {
 
 function renderBlocks() {
   populateBlkTypeFilter();
+  const searchTerm = getV('blk-search').toLowerCase();
   const trFilter = getV('blk-filter-traeger');
   const tyFilter = getV('blk-filter-type');
   // D-071: Bibliothek zeigt jetzt wirklich ALLE Bausteine (trägerübergreifend,
@@ -4151,6 +4350,7 @@ function renderBlocks() {
   // Badge (blockScopeLabel()). Zuvor waren projektspezifische Bausteine hier
   // unsichtbar, obwohl sie über dieselbe Maske entstanden.
   let list = localData.blocks.filter(b => !b.deleted);
+  if (searchTerm) list = list.filter(b => (b.titel || '').toLowerCase().includes(searchTerm));
   if (trFilter === '__global__') list = list.filter(b => !b.traegerId);
   else if (trFilter) list = list.filter(b => b.traegerId === trFilter);
   if (tyFilter) list = list.filter(b => b.blockType === tyFilter);
@@ -5195,8 +5395,10 @@ function renderTrgProjectsTab(t) {
 // Nutzer selbst zurückgreift, nichts wird automatisiert ausgegeben.
 
 function renderPrompts() {
-  const list = localData.promptTemplates.filter(p => !p.deleted)
-    .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'de'));
+  const searchTerm = getV('prm-search').toLowerCase();
+  let list = localData.promptTemplates.filter(p => !p.deleted);
+  if (searchTerm) list = list.filter(p => (p.title || '').toLowerCase().includes(searchTerm));
+  list.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'de'));
   if (list.length === 0) {
     $('prm-list').innerHTML = '<div class="empty"><strong>Keine Prompt-Vorlagen</strong>Neue Vorlage über + hinzufügen.</div>';
   } else {
@@ -5926,15 +6128,26 @@ const IMPORT_RESOLVERS = {
 };
 const IMPORT_ID_PREFIX = { foundations: 'fnd', projects: 'prj', applications: 'app', blocks: 'blk', promptTemplates: 'pt' };
 
-// D-083 (Phase K): optional vorbelegter Datentyp, wenn das Modal über einen
-// der fünf Import-Buttons neben "+" geöffnet wird (statt übers Gear-Menü).
-function openImportModal(preselectType) {
-  $('imp-json').value = '';
+// D-084 (Bugfix): eine laufende Vorschau gehört zu genau einem Datentyp
+// (importPreviewRows wurde vom Resolver DIESES Typs gebaut). Ohne Reset bei
+// Typwechsel bliebe der "Importieren"-Button aktiv, während commitImport()
+// mit dem NEUEN Typ auf die alten Preview-Zeilen losgeht — je nach Typ
+// entweder stille Fehlzuordnung oder (Bausteine: fehlendes
+// variantsToWrite) ein Absturz, der sich wie "Button reagiert nicht"
+// anfühlt (Exception mitten in der Funktion, kein sichtbarer Fehler).
+function resetImportPreview() {
   $('imp-preview').innerHTML = '';
   $('imp-result').className = 'modal-result';
   $('imp-result').textContent = '';
   $('imp-commit-btn').disabled = true;
   importPreviewRows = [];
+}
+
+// D-083 (Phase K): optional vorbelegter Datentyp, wenn das Modal über einen
+// der fünf Import-Buttons neben "+" geöffnet wird (statt übers Gear-Menü).
+function openImportModal(preselectType) {
+  $('imp-json').value = '';
+  resetImportPreview();
   if (preselectType) setV('imp-type', preselectType);
   renderMatchingPrompts();
   openModal('import-modal');
@@ -5948,7 +6161,13 @@ function renderMatchingPrompts() {
   const type = getV('imp-type');
   const noun = IMPORT_TYPE_NOUN[type] || 'des Datensatzes';
   $('imp-prompt-hint').textContent = `Kopiere den Prompt zusammen mit PDFs und Screenshots ${noun} in Claude Chat.`;
-  const matches = localData.promptTemplates.filter(p => !p.deleted && p.datentyp === type);
+  // D-083-Korrektur: "kein/allgemein" (datentyp === "") heisst "passt zu
+  // jedem Datentyp", nicht "passt zu keinem" — bisher wurden diese Prompts
+  // nie angezeigt, weil nur auf exakte Übereinstimmung gefiltert wurde.
+  // Typspezifische Treffer zuerst, allgemeine danach.
+  const specific = localData.promptTemplates.filter(p => !p.deleted && p.datentyp === type);
+  const general = localData.promptTemplates.filter(p => !p.deleted && !p.datentyp);
+  const matches = [...specific, ...general];
   if (!matches.length) {
     $('imp-prompt-list').innerHTML = `<p style="font-size:13px;color:var(--text-dim)">Noch kein Prompt für diesen Datentyp in der Bibliothek hinterlegt (Bibliothek → Prompts).</p>`;
     return;
@@ -5957,6 +6176,7 @@ function renderMatchingPrompts() {
     <div class="sub-item">
       <div class="sub-item-main">
         <div class="sub-item-name">${escapeHtml(p.title || 'Ohne Titel')}</div>
+        ${!p.datentyp ? '<div class="sub-item-sub">Allgemein</div>' : ''}
       </div>
       <button type="button" class="sub-ok" data-copy-prompt="${escapeHtml(p.id)}" style="width:auto;white-space:nowrap">Kopieren</button>
     </div>`).join('');
@@ -6195,9 +6415,12 @@ function bindEvents() {
   $('prj-split-import').addEventListener('click', () => openImportModal('projects'));
   $('blk-split-import').addEventListener('click', () => openImportModal('blocks'));
 
-  // Suche (nur Stiftungen/Projekte, D-036 — Listen, die tatsächlich wachsen)
+  // Suche (D-036 — Listen, die tatsächlich wachsen; D-086: Bausteine/Prompts
+  // wachsen genauso, hatten aber bislang inkonsistenterweise kein Suchfeld)
   $('fnd-search').addEventListener('input', renderFoundations);
   $('prj-search').addEventListener('input', renderProjects);
+  $('blk-search').addEventListener('input', renderBlocks);
+  $('prm-search').addEventListener('input', renderPrompts);
 
   // Workspace-Reiter (D-037/D-042)
   document.querySelectorAll('#prj-workspace-content .workspace-tab').forEach(btn =>
@@ -6248,7 +6471,6 @@ function bindEvents() {
   $('gear-settings').addEventListener('click', () => { closeModal('gear-modal'); openSettingsModal(); });
   $('gear-passung').addEventListener('click',   () => { closeModal('gear-modal'); openPssgModal(); });
   $('gear-diag').addEventListener('click',      () => { closeModal('gear-modal'); openDiag(); });
-  $('gear-import').addEventListener('click',    () => { closeModal('gear-modal'); openImportModal(); });
   $('gear-cancel').addEventListener('click',    () => closeModal('gear-modal'));
   $('pssg-close').addEventListener('click',     () => closeModal('pssg-modal'));
 
@@ -6256,7 +6478,10 @@ function bindEvents() {
   $('imp-preview-btn').addEventListener('click', previewImport);
   $('imp-commit-btn').addEventListener('click', commitImport);
   $('imp-cancel').addEventListener('click', () => closeModal('import-modal'));
-  $('imp-type').addEventListener('change', renderMatchingPrompts); // D-083
+  $('imp-type').addEventListener('change', () => {
+    renderMatchingPrompts();
+    resetImportPreview(); // D-084: alte Vorschau passt nicht mehr zum neuen Typ
+  });
 
   // Hinweis-Dialog (D-070)
   $('alert-ok').addEventListener('click', () => closeModal('alert-modal'));
