@@ -303,6 +303,7 @@ input[type=search]::placeholder { color: var(--text-dim); }
 }
 .tag-input-field:focus { outline: none; }
 textarea { resize: vertical; min-height: 72px; }
+textarea.auto-resize { resize: none; overflow-y: hidden; }
 textarea.blk-editor { min-height: 220px; font-family: ui-monospace, monospace; font-size: 14px; }
 textarea.blk-conflict-text { min-height: 140px; font-family: ui-monospace, monospace; font-size: 13px; }
 .blk-wordcount { font-size: 12px; color: var(--text-dim); text-align: right; margin-top: 2px; }
@@ -573,7 +574,7 @@ label {
 .sub-add-row {
   display: flex; gap: 8px; margin-top: 14px;
 }
-.sub-add-row button {
+.sub-add-row button, .sub-ok, .sub-cancel-btn {
   flex: 1; padding: 9px;
   border-radius: 8px; border: none;
   font-size: 14px; cursor: pointer;
@@ -1319,6 +1320,14 @@ const BLOCKTYPE_LABEL = {
   cv:'CV', traegerschaft:'Trägerschaft', methodik:'Methodik', wirkungslogik:'Wirkungslogik',
   budget:'Budget', projektbeschrieb:'Projektbeschrieb', sonstige:'Sonstige'
 };
+// Punkt 5 (Phase O): kuratierte Grundliste fürs blockType-Datalist, damit das
+// Feld auch bei leerer/junger Bausteine-Bibliothek nicht leer ist — Werte aus
+// dem Recherche-Prompt (Import-Testdatensatz.md, "Vokabular-Beispiele"), muss
+// dort synchron gehalten werden.
+const BLOCKTYPE_VOCAB_SEED = [
+  'zielgruppenanalyse', 'erfolgskontrolle', 'zeitplan-meilensteine',
+  'zusammenarbeit-partner', 'ausgangslage-bedarf'
+];
 const VARIANT_KEY_LABEL = { kurz:'Kurz', mittel:'Mittel', lang:'Lang' };
 const SOURCE_LABEL = { prose:'Prosa', template:'Template' };
 
@@ -1360,6 +1369,15 @@ let bvConflict        = null; // { blockId, key, localText, remoteText, remoteSh
 const $ = id => document.getElementById(id);
 const getV = id => ($(id) ? $(id).value.trim() : '');
 const setV = (id, v) => { if ($(id)) $(id).value = v ?? ''; };
+
+// Punkt 9 (Phase O): Textarea wächst mit Inhalt statt fixer Höhe + internem
+// Scroll. Initial einmal nach dem Rendern aufrufen, danach bei jedem
+// input-Event erneut.
+function autoResizeTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
 
 function debounce(fn, ms) {
   let t = null;
@@ -1671,7 +1689,11 @@ function vocabSuggestions(field) {
       ...localData.foundations.flatMap(f => f.foerderbereiche || [])
     ]),
     geo: new Set(localData.projects.flatMap(p => p.geo || [])),
-    blockType: new Set(localData.blocks.map(b => b.blockType).filter(Boolean)),
+    blockType: new Set([
+      ...localData.blocks.map(b => b.blockType).filter(Boolean),
+      ...Object.keys(BLOCKTYPE_LABEL),
+      ...BLOCKTYPE_VOCAB_SEED
+    ]),
     mehrwerte: new Set(localData.foundations.flatMap(f => f.erwarteteMehrwerte || [])) // D-081
   };
   return Array.from(sets[field] || []).filter(Boolean).sort((a,b) => a.localeCompare(b,'de'));
@@ -2155,7 +2177,15 @@ function switchTab(tab) {
 // aktualisiert, dort gibt es keine Eingabefelder zu verlieren).
 function isEditingWithin(containerId) {
   const el = $(containerId);
-  return !!(el && document.activeElement && document.activeElement !== document.body && el.contains(document.activeElement));
+  if (!el) return false;
+  if (document.activeElement && document.activeElement !== document.body && el.contains(document.activeElement)) return true;
+  // Punkt 2 (Phase O): ein geöffnetes, aber noch nicht ausgefülltes
+  // Sub-Add-Formular (z. B. "+ Meilenstein hinzufügen") hat kein
+  // fokussiertes Feld und wurde bislang vom Sync-Poll-Rebuild trotzdem
+  // weggerissen. Ein offenes .sub-add-form.show zählt daher ebenfalls
+  // als "editing".
+  if (el.querySelector('.sub-add-form.show')) return true;
+  return false;
 }
 
 function refreshCurrentTab() {
@@ -2392,12 +2422,9 @@ function renderFndOverviewTab(f) {
     <div class="tag-input-wrap" id="fndw-foerderbereiche-tags"></div>
     <label for="fndw-ausschluss-tags">Ausschluss-Kriterien</label>
     <div class="tag-input-wrap" id="fndw-ausschluss-tags"></div>
-
-    <div class="modal-section-title" style="margin-top:22px">Rahmenbedingungen</div>
-    <label for="fndw-zusammenarbeitsart">Art der Zusammenarbeit</label>
-    <input type="text" id="fndw-zusammenarbeitsart" placeholder="z. B. reine Geldvergabe vs. operative Begleitung/Beziehung" value="${escapeHtml(f.zusammenarbeitsart || '')}">
-    <label for="fndw-mehrwerte-tags">Erwartete Mehrwerte</label>
-    <div class="tag-input-wrap" id="fndw-mehrwerte-tags"></div>
+    <!-- Punkt 8 (Phase O): "Aktueller Fokus" beschreibt WAS gefördert wird
+         (Themen/Förderbereiche/Ausschluss), nicht WIE/unter welchen
+         Bedingungen (Rahmenbedingungen) — daher hierher verschoben. -->
     <div class="field-row">
       <div>
         <label for="fndw-aktuellerFokus">Aktueller Fokus (falls abweichend vom Förderbereich)</label>
@@ -2408,6 +2435,12 @@ function renderFndOverviewTab(f) {
         <input type="text" id="fndw-aktuellerFokusNotiz" placeholder="O-Ton/Begründung" value="${escapeHtml(f.aktuellerFokusNotiz || '')}">
       </div>
     </div>
+
+    <div class="modal-section-title" style="margin-top:22px">Rahmenbedingungen</div>
+    <label for="fndw-zusammenarbeitsart">Art der Zusammenarbeit</label>
+    <input type="text" id="fndw-zusammenarbeitsart" placeholder="z. B. reine Geldvergabe vs. operative Begleitung/Beziehung" value="${escapeHtml(f.zusammenarbeitsart || '')}">
+    <label for="fndw-mehrwerte-tags">Erwartete Mehrwerte</label>
+    <div class="tag-input-wrap" id="fndw-mehrwerte-tags"></div>
     <div class="field-row">
       <div>
         <label for="fndw-mehrfachfoerderung">Mehrfachförderung</label>
@@ -2462,11 +2495,18 @@ function renderFndOverviewTab(f) {
 
     <div class="modal-section-title" style="margin-top:22px">Verlauf</div>
     <label for="fndw-historie">Eigene Historie</label>
-    <textarea id="fndw-historie">${escapeHtml(f.eigeneHistorie || '')}</textarea>
+    <textarea id="fndw-historie" class="auto-resize">${escapeHtml(f.eigeneHistorie || '')}</textarea>
     <label for="fndw-notes">Notizen</label>
-    <textarea id="fndw-notes">${escapeHtml(f.notes || '')}</textarea>
+    <textarea id="fndw-notes" class="auto-resize">${escapeHtml(f.notes || '')}</textarea>
 
-    <div class="modal-buttons">
+    <!-- Punkt 7 (Phase O): manuelles "zuletzt inhaltlich verifiziert"-Datum,
+         getrennt vom technischen Auto-Zeitstempel modified. Platzierung
+         auf Nutzerwunsch auf Höhe des Löschen-Buttons. -->
+    <div class="modal-buttons" style="justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label for="fndw-zuletztUeberprueft" style="margin:0;white-space:nowrap">Zuletzt inhaltlich verifiziert</label>
+        <input type="date" id="fndw-zuletztUeberprueft" style="width:auto" value="${f.zuletztUeberprueft || ''}">
+      </div>
       <button class="btn-delete" id="fndw-delete">Löschen</button>
     </div>
 
@@ -2521,6 +2561,11 @@ function renderFndOverviewTab(f) {
     else addFrist(f.id);
   });
 
+  ['fndw-historie', 'fndw-notes'].forEach(id => {
+    const el = $(id);
+    autoResizeTextarea(el);
+    el.addEventListener('input', () => autoResizeTextarea(el));
+  });
   wireAutoSave('fndw-panel-overview', () => saveFndOverview(f.id));
 }
 
@@ -2657,6 +2702,7 @@ function saveFndOverview(id) {
   f.erfolgsquoteNotiz = getV('fndw-quoteNotiz') || null;
   f.eigeneHistorie = getV('fndw-historie') || null;
   f.notes = getV('fndw-notes') || null;
+  f.zuletztUeberprueft = getV('fndw-zuletztUeberprueft') || null;
   f.modified = nowIso();
   upsertRecord('foundations', f);
   populateStaticDropdowns();
@@ -2729,8 +2775,13 @@ function renderFndProfileTab(f) {
   fndProfileReqEditIndex = null;
   const profile = getOrCreateProfile(f);
   const blocks = profile?.requiredBlocks || [];
+  // Punkt 1 (Phase O): Anzeige alphabetisch nach Label, Original-Array
+  // (mit den echten Indizes für Edit/Delete) bleibt unangetastet.
+  const sortedWithIndex = blocks.map((rb, i) => ({ rb, i }))
+    .sort((a, b) => (BLOCKTYPE_LABEL[a.rb.blockType] || a.rb.blockType || '')
+      .localeCompare(BLOCKTYPE_LABEL[b.rb.blockType] || b.rb.blockType || '', 'de'));
   const rows = blocks.length
-    ? blocks.map((rb, i) => `
+    ? sortedWithIndex.map(({ rb, i }) => `
       <div class="sub-item">
         <div class="sub-item-main">
           <div class="sub-item-name">${escapeHtml(BLOCKTYPE_LABEL[rb.blockType] || rb.blockType)}${rb.required ? ' · Pflicht' : ''}</div>
@@ -2864,6 +2915,35 @@ let fndPersonEditId = null;
 function renderFndContactsTab(f) {
   fndPersonEditId = null;
   $('fndw-panel-contacts').innerHTML = `
+    <!-- Punkt 6 (Phase O): Anschrift auf Stiftungsebene, additive Felder
+         analog zu traeger.adresse/email/telefon (D-034), aber als
+         Einzelfelder statt Freitext-Adresse — löst den bisherigen Umweg
+         über einen Pseudo-Kontakt "Allgemeine Kontaktinformation" ab. -->
+    <div class="modal-section-title" style="margin-top:0">Anschrift</div>
+    <label for="fndw-strasse">Strasse/Nr.</label>
+    <input type="text" id="fndw-strasse" value="${escapeHtml(f.strasse || '')}">
+    <div class="field-row">
+      <div>
+        <label for="fndw-plz">PLZ</label>
+        <input type="text" id="fndw-plz" inputmode="numeric" value="${escapeHtml(f.plz || '')}">
+      </div>
+      <div>
+        <label for="fndw-ort">Ort</label>
+        <input type="text" id="fndw-ort" value="${escapeHtml(f.ort || '')}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div>
+        <label for="fndw-fndTelefon">Telefon</label>
+        <input type="text" id="fndw-fndTelefon" inputmode="tel" value="${escapeHtml(f.telefon || '')}">
+      </div>
+      <div>
+        <label for="fndw-fndEmail">E-Mail</label>
+        <input type="text" id="fndw-fndEmail" inputmode="email" value="${escapeHtml(f.email || '')}">
+      </div>
+    </div>
+
+    <div class="modal-section-title" style="margin-top:22px">Kontakte</div>
     <div id="fndw-persons-list"></div>
     <button type="button" class="sub-add-btn" id="fndw-per-toggle">+ Kontakt hinzufügen</button>
     <div class="sub-add-form" id="fndw-per-form">
@@ -2890,6 +2970,23 @@ function renderFndContactsTab(f) {
     setV('fndw-per-name',''); setV('fndw-per-rolle',''); setV('fndw-per-email',''); setV('fndw-per-telefon','');
   });
   $('fndw-per-save').addEventListener('click', () => saveFndPerson(f.id));
+  wireAutoSave('fndw-panel-contacts', () => saveFndAddress(f.id));
+}
+
+// Punkt 6 (Phase O): eigene, kleine Save-Funktion nur für die 4 Anschrift-
+// Felder — liegen im Kontakte-Tab, nicht im Übersicht-Tab (saveFndOverview),
+// eigener Panel-Container darum eigene wireAutoSave()-Bindung (D-082-Muster).
+function saveFndAddress(id) {
+  const f = localData.foundations.find(x => x.id === id);
+  if (!f) return;
+  f.strasse = getV('fndw-strasse') || null;
+  f.plz = getV('fndw-plz') || null;
+  f.ort = getV('fndw-ort') || null;
+  f.telefon = getV('fndw-fndTelefon') || null;
+  f.email = getV('fndw-fndEmail') || null;
+  f.modified = nowIso();
+  upsertRecord('foundations', f);
+  syncNow({ force: true });
 }
 
 function renderFndPersonsSubList(foundationId) {
@@ -2899,7 +2996,7 @@ function renderFndPersonsSubList(foundationId) {
       <div class="sub-item">
         <div class="sub-item-main">
           <div class="sub-item-name">${escapeHtml(p.name)}</div>
-          <div class="sub-item-sub">${escapeHtml(p.rolle || '')}${p.email ? ' · ' + escapeHtml(p.email) : ''}</div>
+          <div class="sub-item-sub">${escapeHtml(p.rolle || '')}${p.email ? ' · ' + escapeHtml(p.email) : ''}${p.telefon ? ' · ' + escapeHtml(p.telefon) : ''}</div>
         </div>
         <button class="sub-item-edit" data-pid="${escapeHtml(p.id)}" title="Kontakt bearbeiten">✎</button>
         <button class="sub-item-del" data-pid="${escapeHtml(p.id)}" title="Kontakt löschen">×</button>
@@ -5927,6 +6024,14 @@ function resolveFoundationImportRow(row) {
     erfolgsquoteNotiz: row.erfolgsquoteNotiz ?? existing?.erfolgsquoteNotiz ?? null,
     eigeneHistorie: row.eigeneHistorie ?? existing?.eigeneHistorie ?? null,
     notes: row.notes ?? existing?.notes ?? null,
+    // Punkt 6 (Phase O, D-089): Anschrift-Felder additiv in den Import
+    // aufgenommen, sonst würden sie von der JSON-Import-Vorlage
+    // (Import-Testdatensatz.md) stillschweigend verworfen.
+    strasse: row.strasse ?? existing?.strasse ?? null,
+    plz: row.plz ?? existing?.plz ?? null,
+    ort: row.ort ?? existing?.ort ?? null,
+    telefon: row.telefon ?? existing?.telefon ?? null,
+    email: row.email ?? existing?.email ?? null,
     passungByTraeger: existing?.passungByTraeger || {}
   };
 
