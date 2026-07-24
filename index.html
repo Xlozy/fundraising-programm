@@ -575,11 +575,18 @@ label {
   display: flex; gap: 8px; margin-top: 14px;
 }
 .sub-add-row button, .sub-ok, .sub-cancel-btn {
-  flex: 1; padding: 9px;
+  padding: 9px;
   border-radius: 8px; border: none;
   font-size: 14px; cursor: pointer;
   font-family: inherit; font-weight: 500;
 }
+/* flex:1 bewusst nur für Buttons INNERHALB .sub-add-row (teilen sich die
+   Zeile, z. B. Abbrechen/Hinzufügen) — ein .sub-ok/.sub-cancel-btn ausserhalb
+   (z. B. der Kopieren-Button im Prompt-Import, Zeile ~6286) steht meist neben
+   einem anderen flex:1-Element (.sub-item-main) und würde sich sonst dessen
+   Breite streitig machen (Regression aus D-089/Phase O Punkt 3, gemeldet vom
+   Nutzer: Button nahm fast die halbe Dialogbreite ein). */
+.sub-add-row button { flex: 1; }
 .sub-ok { background: var(--accent); color: #000; font-weight: 700; }
 .sub-cancel-btn { background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); }
 
