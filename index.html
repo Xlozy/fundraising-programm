@@ -469,7 +469,7 @@ label {
 .modal-buttons {
   display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; flex-wrap: wrap;
 }
-.modal-buttons button {
+.modal-buttons button, .btn-save, .btn-cancel, .btn-delete {
   flex: 0 0 auto; padding: 8px 16px;
   border-radius: 6px; border: 1px solid transparent;
   font-size: 13px; font-weight: 500;
@@ -6290,7 +6290,7 @@ function renderMatchingPrompts() {
         <div class="sub-item-name">${escapeHtml(p.title || 'Ohne Titel')}</div>
         ${!p.datentyp ? '<div class="sub-item-sub">Allgemein</div>' : ''}
       </div>
-      <button type="button" class="sub-ok" data-copy-prompt="${escapeHtml(p.id)}" style="width:auto;white-space:nowrap">Kopieren</button>
+      <button type="button" class="btn-save" data-copy-prompt="${escapeHtml(p.id)}">Kopieren</button>
     </div>`).join('');
   $('imp-prompt-list').querySelectorAll('[data-copy-prompt]').forEach(btn => {
     btn.addEventListener('click', async () => {
