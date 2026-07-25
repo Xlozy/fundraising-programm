@@ -141,7 +141,7 @@ body {
 .sidebar.collapsed .sidebar-item { justify-content: center; padding: 9px 0; }
 .sidebar.collapsed .sidebar-footer { flex-direction: column; align-items: stretch; }
 .sidebar.collapsed .sync-status { justify-content: center; padding: 8px 0; }
-#sidebar-toggle svg { transition: transform 0.15s ease; }
+#sidebar-toggle svg, #list-toggle svg { transition: transform 0.15s ease; }
 .sidebar.collapsed #sidebar-toggle svg { transform: rotate(180deg); }
 
 main#main {
@@ -196,23 +196,16 @@ main#main {
 /* D-080 (Phase H, Folgewunsch): Listen-Spalte der Splitviews (Träger/
    Stiftungen/Projekte/Anträge/Bausteine/Prompts) einklappbar — analog zur
    Sidebar (D-077), damit bei geteiltem Bildschirm mehr Platz fürs Detail-
-   Panel bleibt. Toggle-Button lebt als Geschwister von .split-list/.workspace
-   direkt in .splitview, NICHT innerhalb von .workspace — blk-workspace/
-   prm-workspace werden per innerHTML komplett neu aufgebaut (siehe
-   renderBlockWorkspace/renderPromptWorkspace) und würden ihn sonst löschen. */
+   Panel bleibt. */
 .splitview.list-collapsed .split-list {
   width: 0; min-width: 0; opacity: 0; overflow: hidden; pointer-events: none;
 }
-.split-list-toggle {
-  flex-shrink: 0; align-self: flex-start;
-  width: 22px; height: 28px; margin-top: 1px;
-  border-radius: 6px; border: 1px solid var(--border); background: none;
-  color: var(--text-dim); cursor: pointer; padding: 0;
-  display: flex; align-items: center; justify-content: center;
-}
-.split-list-toggle:hover { color: var(--text); background: var(--surface-2); }
-.split-list-toggle svg { width: 14px; height: 14px; transition: transform 0.15s ease; }
-.splitview.list-collapsed .split-list-toggle svg { transform: rotate(180deg); }
+/* Phase P, Punkt 6 (D-090): der Toggle-Button lebte vorher als Geschwister
+   von .split-list/.workspace direkt in .splitview (6x dupliziert, einmal
+   pro Splitview) — jetzt ein einziger Button #list-toggle in der
+   Sidebar-Fussleiste, Rotation direkt über eine Klasse am Button selbst
+   statt über den .splitview-Vorfahren gesteuert. */
+#list-toggle.collapsed svg { transform: rotate(180deg); }
 .workspace { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; height: 100%; scrollbar-gutter: stable; padding-right: 2px; }
 .workspace-empty { color: var(--text-dim); font-size: 14px; text-align: center; padding: 60px 20px; }
 .workspace-header { margin-bottom: 16px; }
@@ -716,6 +709,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   <div class="sidebar-footer">
     <button class="sync-status off" id="sync-btn" title="Sync nicht eingerichtet"><span class="dot"></span><span class="sidebar-label">Sync</span></button>
     <button class="icon-btn" id="settings-btn" title="Menü"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <!-- Phase P, Punkt 6 (D-090): war zuvor 6x dupliziert oben in jeder
+         Splitview-Kopfzeile (.split-list-toggle) — der Zustand war schon
+         global (FR_LIST_COLLAPSED_KEY, alle 6 Listen klappen gemeinsam),
+         nur der Button visuell dupliziert. Auf Nutzerwunsch zu einem
+         einzigen Button hier neben dem Sidebar-Toggle zusammengefasst
+         (gleiche Höhe, kein Höhen-/Abstand-Unterschied mehr). -->
+    <button class="icon-btn" id="list-toggle" title="Liste ein-/ausblenden"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
     <button class="icon-btn" id="sidebar-toggle" title="Sidebar ein-/ausklappen"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
   </div>
 </nav>
@@ -730,7 +730,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="trg-split-list"></div>
       </div>
-      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="trg-workspace">
         <div class="workspace-empty" id="trg-workspace-empty">Wähle einen Träger aus der Liste, oder lege einen neuen an.</div>
         <div id="trg-workspace-content" style="display:none">
@@ -773,7 +772,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="fnd-list"></div>
       </div>
-      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="fnd-workspace">
         <div class="workspace-empty" id="fnd-workspace-empty">Wähle eine Stiftung aus der Liste, oder lege eine neue an.</div>
         <div id="fnd-workspace-content" style="display:none">
@@ -817,7 +815,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="prj-list"></div>
       </div>
-      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="prj-workspace">
         <div class="workspace-empty" id="prj-workspace-empty">Wähle ein Projekt aus der Liste, oder lege ein neues an.</div>
         <div id="prj-workspace-content" style="display:none">
@@ -863,7 +860,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="app-list"></div>
       </div>
-      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="app-workspace">
         <div class="workspace-empty" id="app-workspace-empty">Wähle einen Antrag aus der Liste, oder lege einen neuen an.</div>
         <div id="app-workspace-content" style="display:none">
@@ -928,7 +924,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="blk-list"></div>
       </div>
-      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="blk-workspace">
         <div class="workspace-empty">Baustein aus der Liste wählen oder über + einen neuen anlegen.</div>
       </div>
@@ -947,7 +942,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="prm-list"></div>
       </div>
-      <button type="button" class="split-list-toggle" title="Liste ein-/ausblenden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="workspace" id="prm-workspace">
         <div class="workspace-empty">Prompt-Vorlage aus der Liste wählen oder über + eine neue anlegen.</div>
       </div>
@@ -1698,6 +1692,7 @@ function vocabSuggestions(field) {
     geo: new Set(localData.projects.flatMap(p => p.geo || [])),
     blockType: new Set([
       ...localData.blocks.map(b => b.blockType).filter(Boolean),
+      ...localData.foundations.flatMap(f => (f.anforderungsprofil || []).map(a => a.blockType)).filter(Boolean),
       ...Object.keys(BLOCKTYPE_LABEL),
       ...BLOCKTYPE_VOCAB_SEED
     ]),
@@ -2439,9 +2434,15 @@ function renderFndOverviewTab(f) {
       </div>
       <div>
         <label for="fndw-aktuellerFokusNotiz">Aktueller Fokus – Notiz</label>
-        <input type="text" id="fndw-aktuellerFokusNotiz" placeholder="O-Ton/Begründung" value="${escapeHtml(f.aktuellerFokusNotiz || '')}">
+        <textarea id="fndw-aktuellerFokusNotiz" class="auto-resize" placeholder="O-Ton/Begründung">${escapeHtml(f.aktuellerFokusNotiz || '')}</textarea>
       </div>
     </div>
+    <!-- Phase P, Punkt 3: von der Stiftung veröffentlichte Beispiele bereits
+         geförderter Projekte, zum Abgleich mit eigenen Projekten — bewusst
+         freie Tags (kein Vokabular-Abgleich über Stiftungen hinweg, jeder
+         Eintrag ist projektspezifisch) statt eigener Sub-Liste. -->
+    <label for="fndw-beispielprojekte-tags">Beispielprojekte (bereits gefördert, laut Stiftung)</label>
+    <div class="tag-input-wrap" id="fndw-beispielprojekte-tags"></div>
 
     <div class="modal-section-title" style="margin-top:22px">Rahmenbedingungen</div>
     <label for="fndw-zusammenarbeitsart">Art der Zusammenarbeit</label>
@@ -2460,7 +2461,7 @@ function renderFndOverviewTab(f) {
       </div>
       <div>
         <label for="fndw-mehrfachfoerderungNotiz">Mehrfachförderung – Notiz</label>
-        <input type="text" id="fndw-mehrfachfoerderungNotiz" value="${escapeHtml(f.mehrfachfoerderungNotiz || '')}">
+        <textarea id="fndw-mehrfachfoerderungNotiz" class="auto-resize">${escapeHtml(f.mehrfachfoerderungNotiz || '')}</textarea>
       </div>
     </div>
     <label for="fndw-subsidiaritaet">Subsidiarität (vorgelagerte Anlaufstellen/Bedingungen)</label>
@@ -2498,7 +2499,7 @@ function renderFndOverviewTab(f) {
       </div>
     </div>
     <label for="fndw-quoteNotiz">Erfolgsquote – Notiz</label>
-    <input type="text" id="fndw-quoteNotiz" value="${escapeHtml(f.erfolgsquoteNotiz || '')}">
+    <textarea id="fndw-quoteNotiz" class="auto-resize">${escapeHtml(f.erfolgsquoteNotiz || '')}</textarea>
 
     <div class="modal-section-title" style="margin-top:22px">Verlauf</div>
     <label for="fndw-historie">Eigene Historie</label>
@@ -2508,11 +2509,16 @@ function renderFndOverviewTab(f) {
 
     <!-- Punkt 7 (Phase O): manuelles "zuletzt inhaltlich verifiziert"-Datum,
          getrennt vom technischen Auto-Zeitstempel modified. Platzierung
-         auf Nutzerwunsch auf Höhe des Löschen-Buttons. -->
+         auf Nutzerwunsch auf Höhe des Löschen-Buttons.
+         Phase P, Nachtrag (D-090): "nur KI"-Checkbox daneben — hält fest,
+         ob die Verifikation nur durch eine KI-Recherche (ohne manuellen
+         Abgleich durch den Nutzer) erfolgte, im Unterschied zu einer
+         inhaltlichen Prüfung durch den Nutzer selbst. -->
     <div class="modal-buttons" style="justify-content:space-between;align-items:center">
       <div style="display:flex;align-items:center;gap:8px">
         <label for="fndw-zuletztUeberprueft" style="margin:0;white-space:nowrap">Zuletzt inhaltlich verifiziert</label>
         <input type="date" id="fndw-zuletztUeberprueft" style="width:auto" value="${f.zuletztUeberprueft || ''}">
+        <label style="margin:0;white-space:nowrap;display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="fndw-zuletztUeberprueftNurKi" style="width:auto" ${f.zuletztUeberprueftNurKi ? 'checked' : ''}> nur KI</label>
       </div>
       <button class="btn-delete" id="fndw-delete">Löschen</button>
     </div>
@@ -2543,6 +2549,7 @@ function renderFndOverviewTab(f) {
   renderTagField('fndw-foerderbereiche-tags', f.foerderbereiche, 'dl-vocab-format');
   renderTagField('fndw-ausschluss-tags', f.ausschluss);
   renderTagField('fndw-mehrwerte-tags', f.erwarteteMehrwerte, 'dl-vocab-mehrwerte');
+  renderTagField('fndw-beispielprojekte-tags', f.beispielprojekte);
 
   $('fndw-fristTyp').addEventListener('change', () => {
     $('fndw-fristen-wrap').style.display = getV('fndw-fristTyp') !== 'laufend' ? '' : 'none';
@@ -2568,7 +2575,7 @@ function renderFndOverviewTab(f) {
     else addFrist(f.id);
   });
 
-  ['fndw-historie', 'fndw-notes'].forEach(id => {
+  ['fndw-historie', 'fndw-notes', 'fndw-aktuellerFokusNotiz', 'fndw-mehrfachfoerderungNotiz', 'fndw-quoteNotiz'].forEach(id => {
     const el = $(id);
     autoResizeTextarea(el);
     el.addEventListener('input', () => autoResizeTextarea(el));
@@ -2697,6 +2704,7 @@ function saveFndOverview(id) {
   f.zusammenarbeitsart = getV('fndw-zusammenarbeitsart') || null;
   f.aktuellerFokus = getV('fndw-aktuellerFokus') || null;
   f.aktuellerFokusNotiz = getV('fndw-aktuellerFokusNotiz') || null;
+  f.beispielprojekte = getTagsFromField('fndw-beispielprojekte-tags');
   f.mehrfachfoerderung = getV('fndw-mehrfachfoerderung') || 'unbekannt';
   f.mehrfachfoerderungNotiz = getV('fndw-mehrfachfoerderungNotiz') || null;
   f.subsidiaritaet = getV('fndw-subsidiaritaet') || null;
@@ -2710,6 +2718,7 @@ function saveFndOverview(id) {
   f.eigeneHistorie = getV('fndw-historie') || null;
   f.notes = getV('fndw-notes') || null;
   f.zuletztUeberprueft = getV('fndw-zuletztUeberprueft') || null;
+  f.zuletztUeberprueftNurKi = $('fndw-zuletztUeberprueftNurKi').checked;
   f.modified = nowIso();
   upsertRecord('foundations', f);
   populateStaticDropdowns();
@@ -3887,7 +3896,12 @@ function switchAppTab(tab) {
 }
 
 function toggleAbschlussnotizWrap() {
-  $('app-abschlussnotiz-wrap').style.display = getV('app-entscheidEin') ? '' : 'none';
+  const show = !!getV('app-entscheidEin');
+  $('app-abschlussnotiz-wrap').style.display = show ? '' : 'none';
+  // Auto-Resize-Höhe wurde ggf. bei display:none mit scrollHeight 0 berechnet
+  // (autoResizeTextarea-Aufruf beim Rendern) — beim Sichtbarwerden neu
+  // berechnen, sonst bleibt das Feld optisch auf 0px Höhe stehen.
+  if (show) autoResizeTextarea($('app-abschlussnotiz'));
 }
 
 // ── Übersicht: Zuordnung/Status/Termine inline editierbar (D-051-Muster) ────
@@ -3962,14 +3976,14 @@ function renderAppOverviewTab(a) {
     <label for="app-personId">Ansprechperson</label>
     <select id="app-personId"><option value="">— keine —</option></select>
     <label for="app-notes">Notizen</label>
-    <textarea id="app-notes" placeholder="Interne Notizen, Auflagen, Besonderheiten"></textarea>
+    <textarea id="app-notes" class="auto-resize" placeholder="Interne Notizen, Auflagen, Besonderheiten"></textarea>
 
     <!-- D-048: Ergebnis-Reflexion, getrennt von notes (laufende Arbeitsnotizen)
          und foundation.eigeneHistorie (allgemeine Stiftungs-Einschätzung) —
          sichtbar sobald ein Entscheid eingegangen ist. -->
     <div id="app-abschlussnotiz-wrap" style="display:none">
       <label for="app-abschlussnotiz">Abschlussnotiz (Ergebnis-Reflexion)</label>
-      <textarea id="app-abschlussnotiz" placeholder="Was kam dabei heraus? Begründung, Lernpunkt…"></textarea>
+      <textarea id="app-abschlussnotiz" class="auto-resize" placeholder="Was kam dabei heraus? Begründung, Lernpunkt…"></textarea>
     </div>
 
     <div class="modal-buttons">
@@ -4000,6 +4014,12 @@ function renderAppOverviewTab(a) {
   setV('app-notes',        a.notes        || '');
   setV('app-abschlussnotiz', a.abschlussnotiz || '');
   toggleAbschlussnotizWrap();
+
+  ['app-notes', 'app-abschlussnotiz'].forEach(id => {
+    const el = $(id);
+    autoResizeTextarea(el);
+    el.addEventListener('input', () => autoResizeTextarea(el));
+  });
 
   $('app-traegerId').addEventListener('change', () => populateProjectSelect(getV('app-traegerId'), ''));
   $('app-foundationId').addEventListener('change', () => populatePersonSelect(getV('app-foundationId'), ''));
@@ -5998,7 +6018,12 @@ function resolveFoundationImportRow(row) {
   const nameVoll = row.nameVoll || row.name || '';
   const nameKurz = row.nameKurz || '';
   if (!nameVoll && !nameKurz) errors.push('nameVoll oder nameKurz fehlt');
-  const existing = findFoundationByNameOrKurz(nameKurz) || findFoundationByNameOrKurz(nameVoll);
+  // D-089 Nachtrag (Phase P, Punkt 4): ausschliesslich über nameVoll matchen,
+  // nicht über nameKurz — ein zufällig gleiches Kürzel darf hier keinen
+  // komplett anderen Datensatz überschreiben. findFoundationByNameOrKurz()
+  // matcht bewusst über beide Felder und bleibt für andere Aufrufer
+  // (z. B. resolveApplicationImportRow) unverändert.
+  const existing = localData.foundations.find(f => !f.deleted && normStr(f.nameVoll) === normStr(nameVoll)) || null;
   const fields = {
     nameVoll: nameVoll || existing?.nameVoll || nameKurz,
     nameKurz: nameKurz || existing?.nameKurz || nameVoll,
@@ -6039,6 +6064,10 @@ function resolveFoundationImportRow(row) {
     ort: row.ort ?? existing?.ort ?? null,
     telefon: row.telefon ?? existing?.telefon ?? null,
     email: row.email ?? existing?.email ?? null,
+    // Phase P, Punkt 3 (D-090): additiv, gleiche Whitelist-Falle wie D-089
+    // Punkt 6 — ohne expliziten Eintrag hier würde ein importiertes
+    // beispielprojekte[] stillschweigend verworfen.
+    beispielprojekte: row.beispielprojekte || existing?.beispielprojekte || [],
     passungByTraeger: existing?.passungByTraeger || {}
   };
 
@@ -6568,15 +6597,17 @@ function bindEvents() {
 
   // Splitview-Listen einklappen (D-080) — ein gemeinsamer Zustand für alle
   // sechs Splitviews (Träger/Stiftungen/Projekte/Anträge/Bausteine/Prompts).
+  // Phase P, Punkt 6 (D-090): ein einziger Button (#list-toggle, Sidebar-
+  // Fussleiste) statt 6 duplizierter Buttons oben in jeder Splitview-
+  // Kopfzeile — der Zustand war schon vorher global, nur der Button nicht.
   if (localStorage.getItem(FR_LIST_COLLAPSED_KEY) === '1') {
     document.querySelectorAll('.splitview').forEach(el => el.classList.add('list-collapsed'));
+    $('list-toggle').classList.add('collapsed');
   }
-  document.querySelectorAll('.split-list-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const collapsed = !btn.closest('.splitview').classList.contains('list-collapsed');
-      document.querySelectorAll('.splitview').forEach(el => el.classList.toggle('list-collapsed', collapsed));
-      localStorage.setItem(FR_LIST_COLLAPSED_KEY, collapsed ? '1' : '0');
-    });
+  $('list-toggle').addEventListener('click', () => {
+    const collapsed = $('list-toggle').classList.toggle('collapsed');
+    document.querySelectorAll('.splitview').forEach(el => el.classList.toggle('list-collapsed', collapsed));
+    localStorage.setItem(FR_LIST_COLLAPSED_KEY, collapsed ? '1' : '0');
   });
 
   // Gear-Menü
