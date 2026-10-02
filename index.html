@@ -755,6 +755,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <input type="search" class="split-search" id="fnd-search" placeholder="Stiftung suchen…">
           <button type="button" class="split-add-btn" id="fnd-split-add" title="Neue Stiftung">+</button>
           <button type="button" class="split-import-btn" id="fnd-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
+          <button type="button" class="split-import-btn" id="fnd-split-export" title="Angezeigte Stiftungen herunterladen (Markdown)" aria-label="Angezeigte Stiftungen herunterladen (Markdown)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg></button>
         </div>
         <div class="filter-bar">
           <select id="fnd-filter-status">
@@ -2255,7 +2256,9 @@ function populatePersonSelect(foundationId, selectedId) {
 
 // ─── Stiftungen ───────────────────────────────────────────────────────────────
 
-function renderFoundations() {
+// D-091: Filterlogik der Stiftungsliste ausgelagert, damit Liste und
+// Markdown-Export (exportFoundationsMd) garantiert dieselbe Auswahl zeigen.
+function getFilteredFoundations() {
   const searchTerm   = getV('fnd-search').toLowerCase();
   const statusFilter = getV('fnd-filter-status');
   const fristFilter  = getV('fnd-filter-frist');
@@ -2274,6 +2277,11 @@ function renderFoundations() {
   // (Frist-Dringlichkeit bleibt über Filter + Farb-Badge auf der Karte
   // sichtbar, siehe fristFilter oben und die Karten-Anzeige unten).
   list.sort((a,b) => (a.nameVoll || a.nameKurz || '').localeCompare(b.nameVoll || b.nameKurz || '', 'de'));
+  return list;
+}
+
+function renderFoundations() {
+  const list = getFilteredFoundations();
 
   if (list.length === 0) {
     $('fnd-list').innerHTML = '<div class="empty"><strong>Keine Stiftungen</strong>Neue Stiftung über + hinzufügen.</div>';
@@ -5730,13 +5738,16 @@ function traegerDetailLines(t) {
 
 // traegerForPassung: optionaler Träger aus dem gleichen Kontext, um dessen
 // Passungs-Bewertung (falls vorhanden) mit auszugeben.
-function foundationDetailLines(f, traegerForPassung) {
+// D-091: Feldliste der Stiftungs-Übersicht ausgelagert — gemeinsam genutzt
+// von foundationDetailLines (Kontextpaket, Ausgabe unverändert) und dem
+// Stiftungs-Export (foundationExportLines, ergänzt weitere Felder).
+function foundationOverviewPairs(f) {
   const quote = f.erfolgsquoteGeschaetzt != null ? Math.round(f.erfolgsquoteGeschaetzt * 100) + '%' : null;
   const fristenText = (f.fristen || []).filter(fr => fr.datum)
     .slice().sort((a,b) => a.datum.localeCompare(b.datum))
     .map(fr => `${fmtDate(fr.datum)}${fr.bezeichnung ? ' (' + fr.bezeichnung + ')' : ''}${fr.wiederkehrend ? ' [wiederkehrend]' : ''}`)
     .join('; ');
-  const fields = kvLines([
+  return [
     ['Name (vollständig)', f.nameVoll],
     ['Kürzel', f.nameKurz],
     ['Status', FOUNDATION_STATUS[f.status] || f.status],
@@ -5762,7 +5773,11 @@ function foundationDetailLines(f, traegerForPassung) {
     ['Notiz zur Erfolgsquote', f.erfolgsquoteNotiz],
     ['Eigene Historie', f.eigeneHistorie],
     ['Notizen', f.notes],
-  ]);
+  ];
+}
+
+function foundationDetailLines(f, traegerForPassung) {
+  const fields = kvLines(foundationOverviewPairs(f));
   if (traegerForPassung) {
     const rating = (f.passungByTraeger || {})[traegerForPassung.id];
     if (rating) fields.push(`- **Passung zu ${traegerForPassung.nameKurz}:** ${rating}/5`);
@@ -5784,6 +5799,108 @@ function foundationDetailLines(f, traegerForPassung) {
     relatedProjects.forEach(p => out.push(`  - ${p.titel} — ${PROJECT_STATUS[p.status] || p.status}`));
   }
   return out;
+}
+
+// D-091: Export aller in der Liste angezeigten Stiftungen (Suche/Filter
+// werden respektiert) als eine Markdown-Datei — je Stiftung die vier
+// Workspace-Tabs Übersicht / Anforderungsprofil / Kontakte / Projekte.
+// Rein lokal (kein GitHub-Abruf nötig: alle Daten liegen in data.json).
+function foundationExportLines(f, nr) {
+  const out = [`## ${nr}. ${f.nameVoll || f.nameKurz || '(ohne Namen)'}`, ''];
+
+  // Übersicht
+  const pass = Object.entries(f.passungByTraeger || {})
+    .filter(([, v]) => v)
+    .map(([trgId, v]) => `${traegerName(trgId)} ${v}/5`).join(', ');
+  const verifiziert = f.zuletztUeberprueft
+    ? fmtDate(f.zuletztUeberprueft) + (f.zuletztUeberprueftNurKi ? ' (nur KI)' : '') : null;
+  const overview = kvLines([
+    ...foundationOverviewPairs(f),
+    ['Beispielprojekte', (f.beispielprojekte || []).join('; ')],
+    ['Passung', pass],
+    ['Zuletzt inhaltlich verifiziert', verifiziert],
+  ]);
+  out.push('### Übersicht', ...(overview.length ? overview : ['(keine Angaben)']), '');
+
+  // Anforderungsprofil
+  const profile = f.requirementProfileId
+    ? localData.requirementProfiles.find(rp => !rp.deleted && rp.id === f.requirementProfileId) : null;
+  const reqs = (profile?.requiredBlocks || []).slice()
+    .sort((a, b) => (BLOCKTYPE_LABEL[a.blockType] || a.blockType || '')
+      .localeCompare(BLOCKTYPE_LABEL[b.blockType] || b.blockType || '', 'de'));
+  out.push('### Anforderungsprofil');
+  if (reqs.length) reqs.forEach(rb => out.push(
+    `- ${BLOCKTYPE_LABEL[rb.blockType] || rb.blockType}${rb.required ? ' (Pflicht)' : ''}` +
+    `${rb.hinweis ? ' · ' + rb.hinweis : ''}${rb.bedingung ? ' · Bedingung: ' + rb.bedingung : ''}`));
+  else out.push('(keine Anforderungen erfasst)');
+  out.push('');
+
+  // Kontakte (Anschrift der Stiftung + Personen)
+  out.push('### Kontakte');
+  const ortZeile = [f.plz, f.ort].filter(Boolean).join(' ');
+  const anschrift = kvLines([
+    ['Anschrift', [f.strasse, ortZeile].filter(Boolean).join(', ')],
+    ['Telefon', f.telefon],
+    ['E-Mail', f.email],
+  ]);
+  const persons = (localData.persons || []).filter(p => !p.deleted && p.organisationId === f.id)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+  out.push(...anschrift);
+  persons.forEach(p => out.push(`- ${p.name}${p.rolle ? ' (' + p.rolle + ')' : ''}${p.email ? ' · ' + p.email : ''}${p.telefon ? ' · ' + p.telefon : ''}`));
+  if (!anschrift.length && !persons.length) out.push('(keine Kontakte erfasst)');
+  out.push('');
+
+  // Projekte (über Anträge verknüpft, analog renderFndProjectsTab)
+  out.push('### Projekte');
+  const apps = (localData.applications || []).filter(a => !a.deleted && a.foundationId === f.id);
+  const projects = [...new Set(apps.map(a => a.projectId))]
+    .map(pid => (localData.projects || []).find(p => !p.deleted && p.id === pid))
+    .filter(Boolean)
+    .sort((a, b) => (a.titel || '').localeCompare(b.titel || '', 'de'));
+  if (projects.length) projects.forEach(p => {
+    out.push(`- **${p.titel || '(ohne Titel)'}** — ${traegerName(p.traegerId)} · Projektstatus: ${PROJECT_STATUS[p.status] || p.status || '–'}`);
+    apps.filter(a => a.projectId === p.id).forEach(a => {
+      const parts = [`Antrag: ${APPLICATION_STATUS[a.status] || a.status || '–'}`];
+      if (a.summeChf != null && a.summeChf !== '') parts.push(`beantragt ${fmtChf(a.summeChf)}`);
+      if (a.zugesagtChf != null && a.zugesagtChf !== '') parts.push(`zugesagt ${fmtChf(a.zugesagtChf)}`);
+      if (a.einreichdatum) parts.push(`eingereicht ${fmtDate(a.einreichdatum)}`);
+      out.push(`  - ${parts.join(' · ')}`);
+    });
+  });
+  else out.push('(noch keine verknüpften Projekte)');
+  out.push('');
+  return out;
+}
+
+function exportFoundationsMd() {
+  const list = getFilteredFoundations();
+  if (!list.length) { showAlert('Keine Stiftungen in der aktuellen Auswahl.'); return; }
+
+  const filters = [];
+  const term = getV('fnd-search').trim();
+  if (term) filters.push(`Suche «${term}»`);
+  ['fnd-filter-status', 'fnd-filter-frist'].forEach(id => {
+    const sel = $(id);
+    if (sel && sel.value) filters.push(sel.options[sel.selectedIndex].text);
+  });
+  const total = localData.foundations.filter(f => !f.deleted).length;
+  const dateStr = nowIso().slice(0, 10);
+
+  const lines = [
+    '# Stiftungen', '',
+    `**Erstellt:** ${fmtDate(dateStr)}`,
+    `**Anzahl:** ${list.length}${filters.length ? ' von ' + total : ''}`,
+    `**Filter:** ${filters.length ? filters.join(' · ') : 'keiner (alle Stiftungen)'}`,
+    '', '## Inhalt', '',
+    ...list.map((f, i) => `${i + 1}. ${f.nameVoll || f.nameKurz || '(ohne Namen)'}`),
+    '', '---', '',
+  ];
+  list.forEach((f, i) => {
+    lines.push(...foundationExportLines(f, i + 1));
+    if (i < list.length - 1) lines.push('---', '');
+  });
+  const fileName = `stiftungen_${dateStr}${filters.length ? '_gefiltert' : ''}.md`;
+  downloadTextFile(fileName, lines.join('\n'));
 }
 
 function projectDetailLines(p) {
@@ -6553,6 +6670,7 @@ function bindEvents() {
   // Import-Buttons je Splitview (D-083, Phase K) — Träger bewusst ausgenommen,
   // Träger können nicht importiert werden (siehe Import-Modal-Hinweistext).
   $('fnd-split-import').addEventListener('click', () => openImportModal('foundations'));
+  $('fnd-split-export').addEventListener('click', exportFoundationsMd);
   $('prj-split-import').addEventListener('click', () => openImportModal('projects'));
   $('blk-split-import').addEventListener('click', () => openImportModal('blocks'));
 
