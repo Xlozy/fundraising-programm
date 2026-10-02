@@ -800,6 +800,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <input type="search" class="split-search" id="prj-search" placeholder="Projekt suchen…">
           <button type="button" class="split-add-btn" id="prj-split-add" title="Neues Projekt">+</button>
           <button type="button" class="split-import-btn" id="prj-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
+          <button type="button" class="split-import-btn" id="prj-split-export" title="Angezeigte Projekte herunterladen (Markdown)" aria-label="Angezeigte Projekte herunterladen (Markdown)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg></button>
         </div>
         <div class="filter-bar">
           <select id="prj-filter-traeger"><option value="">Alle Träger</option></select>
@@ -846,6 +847,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <input type="search" class="split-search" id="app-search" placeholder="Antrag suchen…">
           <button type="button" class="split-add-btn" id="app-split-add" title="Neuer Antrag">+</button>
           <button type="button" class="split-import-btn" id="app-split-import" title="Aus Recherche importieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 5h16"/></svg></button>
+          <button type="button" class="split-import-btn" id="app-split-export" title="Angezeigte Anträge herunterladen (Markdown)" aria-label="Angezeigte Anträge herunterladen (Markdown)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg></button>
         </div>
         <div class="filter-bar">
           <select id="app-filter-traeger"><option value="">Alle Träger</option></select>
@@ -3116,7 +3118,8 @@ function renderFndProjectsTab(f) {
 
 // ─── Projekte ─────────────────────────────────────────────────────────────────
 
-function renderProjects() {
+// D-092: Filterlogik ausgelagert (gemeinsam für Liste und Markdown-Export).
+function getFilteredProjects() {
   const searchTerm = getV('prj-search').toLowerCase();
   const trFilter = getV('prj-filter-traeger');
   const stFilter = getV('prj-filter-status');
@@ -3125,6 +3128,11 @@ function renderProjects() {
   if (trFilter) list = list.filter(p => p.traegerId === trFilter);
   if (stFilter) list = list.filter(p => p.status === stFilter);
   list.sort((a,b) => (a.titel||'').localeCompare(b.titel||'','de'));
+  return list;
+}
+
+function renderProjects() {
+  const list = getFilteredProjects();
 
   if (list.length === 0) {
     $('prj-list').innerHTML = '<div class="empty"><strong>Keine Projekte</strong>Neues Projekt über + hinzufügen.</div>';
@@ -3793,7 +3801,8 @@ function renderProjectApplicationsTab(p) {
 // app-modal. Klick auf einen Antrag (egal von wo) öffnet ihn jetzt direkt
 // über goToApplication(), statt auf der leeren Projekt-Seite zu landen.
 
-function renderApplicationsSplitList() {
+// D-092: Filterlogik ausgelagert (gemeinsam für Liste und Markdown-Export).
+function getFilteredApplications() {
   const searchTerm = getV('app-search').toLowerCase();
   const trFilter = getV('app-filter-traeger');
   const stFilter = getV('app-filter-status');
@@ -3812,6 +3821,11 @@ function renderApplicationsSplitList() {
     foundationFullName(x.foundationId).localeCompare(foundationFullName(y.foundationId), 'de')
     || projectTitle(x.projectId).localeCompare(projectTitle(y.projectId), 'de')
   );
+  return list;
+}
+
+function renderApplicationsSplitList() {
+  const list = getFilteredApplications();
 
   if (list.length === 0) {
     $('app-list').innerHTML = '<div class="empty"><strong>Keine Anträge</strong>Über + hier anlegen, oder direkt im Projekt-Workspace unter „Anträge".</div>';
@@ -5805,8 +5819,8 @@ function foundationDetailLines(f, traegerForPassung) {
 // werden respektiert) als eine Markdown-Datei — je Stiftung die vier
 // Workspace-Tabs Übersicht / Anforderungsprofil / Kontakte / Projekte.
 // Rein lokal (kein GitHub-Abruf nötig: alle Daten liegen in data.json).
-function foundationExportLines(f, nr) {
-  const out = [`## ${nr}. ${f.nameVoll || f.nameKurz || '(ohne Namen)'}`, ''];
+function foundationExportLines(f) {
+  const out = [];  // Titelzeile setzt downloadListExportMd (D-092)
 
   // Übersicht
   const pass = Object.entries(f.passungByTraeger || {})
@@ -5872,35 +5886,217 @@ function foundationExportLines(f, nr) {
   return out;
 }
 
-function exportFoundationsMd() {
-  const list = getFilteredFoundations();
-  if (!list.length) { showAlert('Keine Stiftungen in der aktuellen Auswahl.'); return; }
-
+// D-092: gemeinsamer Rahmen für die Listen-Exporte (Stiftungen, Projekte,
+// Anträge) — Kopf mit Datum/Anzahl/Filter, Inhaltsverzeichnis, Einträge.
+function describeListFilters(searchId, selectIds) {
   const filters = [];
-  const term = getV('fnd-search').trim();
+  const term = getV(searchId).trim();
   if (term) filters.push(`Suche «${term}»`);
-  ['fnd-filter-status', 'fnd-filter-frist'].forEach(id => {
+  selectIds.forEach(id => {
     const sel = $(id);
     if (sel && sel.value) filters.push(sel.options[sel.selectedIndex].text);
   });
-  const total = localData.foundations.filter(f => !f.deleted).length;
-  const dateStr = nowIso().slice(0, 10);
+  return filters;
+}
 
+function downloadListExportMd({ title, fileStem, emptyMsg, list, total, filters, entryTitle, entryLines }) {
+  if (!list.length) { showAlert(emptyMsg); return; }
+  const dateStr = nowIso().slice(0, 10);
   const lines = [
-    '# Stiftungen', '',
+    `# ${title}`, '',
     `**Erstellt:** ${fmtDate(dateStr)}`,
     `**Anzahl:** ${list.length}${filters.length ? ' von ' + total : ''}`,
-    `**Filter:** ${filters.length ? filters.join(' · ') : 'keiner (alle Stiftungen)'}`,
+    `**Filter:** ${filters.length ? filters.join(' · ') : `keiner (alle ${title})`}`,
     '', '## Inhalt', '',
-    ...list.map((f, i) => `${i + 1}. ${f.nameVoll || f.nameKurz || '(ohne Namen)'}`),
+    ...list.map((x, i) => `${i + 1}. ${entryTitle(x)}`),
     '', '---', '',
   ];
-  list.forEach((f, i) => {
-    lines.push(...foundationExportLines(f, i + 1));
+  list.forEach((x, i) => {
+    lines.push(`## ${i + 1}. ${entryTitle(x)}`, '', ...entryLines(x));
     if (i < list.length - 1) lines.push('---', '');
   });
-  const fileName = `stiftungen_${dateStr}${filters.length ? '_gefiltert' : ''}.md`;
-  downloadTextFile(fileName, lines.join('\n'));
+  downloadTextFile(`${fileStem}_${dateStr}${filters.length ? '_gefiltert' : ''}.md`, lines.join('\n'));
+}
+
+function exportFoundationsMd() {
+  downloadListExportMd({
+    title: 'Stiftungen', fileStem: 'stiftungen',
+    emptyMsg: 'Keine Stiftungen in der aktuellen Auswahl.',
+    list: getFilteredFoundations(),
+    total: localData.foundations.filter(f => !f.deleted).length,
+    filters: describeListFilters('fnd-search', ['fnd-filter-status', 'fnd-filter-frist']),
+    entryTitle: f => f.nameVoll || f.nameKurz || '(ohne Namen)',
+    entryLines: foundationExportLines,
+  });
+}
+
+function exportDateText(s) {
+  if (!s) return null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? fmtDate(s) : s;
+}
+
+function requirementCheckLines(profile, project) {
+  const reqs = profile?.requiredBlocks || [];
+  if (!reqs.length) return ['(kein Anforderungsprofil)'];
+  const vorhanden = new Set(candidateBlocksForProject(project).map(b => normBlockType(b.blockType)).filter(Boolean));
+  return reqs.map(rb => {
+    const ok = vorhanden.has(normBlockType(rb.blockType));
+    const mark = ok ? '[vorhanden]' : (rb.required ? '[fehlt]' : '[fehlt, optional]');
+    return `- ${mark} ${BLOCKTYPE_LABEL[rb.blockType] || rb.blockType}${rb.required ? ' (Pflicht)' : ''}` +
+      `${rb.hinweis ? ' · ' + rb.hinweis : ''}${rb.bedingung ? ' · Bedingung: ' + rb.bedingung : ''}`;
+  });
+}
+
+function profileForFoundationId(fid) {
+  const f = localData.foundations.find(x => x.id === fid);
+  return f?.requirementProfileId
+    ? localData.requirementProfiles.find(rp => !rp.deleted && rp.id === f.requirementProfileId) : null;
+}
+
+// D-092: Projekte — Tabs Übersicht / Bausteine / Budget / Anträge.
+function projectExportLines(p) {
+  const out = [];
+  const z = p.zeitraum || {};
+  const zeitraum = (z.start || z.end) ? `${exportDateText(z.start) || '–'} bis ${exportDateText(z.end) || '–'}` : null;
+  const overview = kvLines([
+    ['Titel', p.titel],
+    ['Träger', p.traegerId ? traegerName(p.traegerId) : null],
+    ['Status', PROJECT_STATUS[p.status] || p.status],
+    ['Zeitraum', zeitraum],
+    ['Kurzbeschreibung', p.kurzbeschreibung],
+    ['Zielgruppe', p.zielgruppe],
+    ['Ergebnis', p.ergebnis],
+    ['Themen', (p.themen || []).join(', ')],
+    ['Format', (p.format || []).join(', ')],
+    ['Geo', (p.geo || []).join(', ')],
+  ]);
+  out.push('### Übersicht', ...(overview.length ? overview : ['(keine Angaben)']));
+  const ms = (p.meilensteine || []).slice().sort((a, b) => (a.datum || '').localeCompare(b.datum || ''));
+  if (ms.length) { out.push('- **Meilensteine:**'); ms.forEach(m => out.push(`  - ${m.datum ? fmtDate(m.datum) : 'kein Datum'}: ${m.bezeichnung || ''}`)); }
+  out.push('');
+
+  const byTitle = (a, b) => (a.titel || '').localeCompare(b.titel || '', 'de');
+  const specific = localData.blocks.filter(b => !b.deleted && b.projectId === p.id).sort(byTitle);
+  const automatic = candidateBlocksForProject(p).filter(b => b.projectId !== p.id).sort(byTitle);
+  out.push('### Bausteine', '**Projektspezifisch**');
+  if (specific.length) specific.forEach(b => out.push(`- ${b.titel} (${BLOCKTYPE_LABEL[b.blockType] || b.blockType || '–'})`));
+  else out.push('(keine)');
+  out.push('', '**Automatisch verfügbar (trägerweit & trägerübergreifend)**');
+  if (automatic.length) automatic.forEach(b => out.push(`- ${b.titel} (${BLOCKTYPE_LABEL[b.blockType] || b.blockType || '–'}) · ${blockScopeLabel(b)}`));
+  else out.push('(keine)');
+  out.push('');
+
+  const cov = computeProjectCoverage(p);
+  out.push('### Budget',
+    `- **Bedarf:** ${fmtChf(cov.bedarf || 0)}`,
+    `- **Zugesagt:** ${fmtChf(cov.zugesagt || 0)}`,
+    `- **Offen (beantragt):** ${fmtChf(cov.offen || 0)}`,
+    `- **Fehlend:** ${fmtChf(cov.fehlend || 0)}`, '', '**Ausgaben**');
+  const exp = p.expenses || [];
+  if (exp.length) exp.forEach(e => out.push(`- ${e.position}: ${fmtChf(e.summeChf)}`));
+  else out.push('(keine Positionen)');
+  out.push('', '**Einnahmen / Finanzierungsplan**');
+  const fp = p.financingPlan || [];
+  if (fp.length) fp.forEach(x => out.push(`- ${x.quelle}: ${fmtChf(x.summeChf)} (${FP_STATUS[x.status] || x.status || '–'})${x.applicationId ? ' · aus Antrag' : ''}`));
+  else out.push('(keine Posten)');
+  out.push('');
+
+  out.push('### Anträge');
+  const apps = localData.applications.filter(a => !a.deleted && a.projectId === p.id)
+    .sort((a, b) => (b.einreichdatum || b.modified || '').localeCompare(a.einreichdatum || a.modified || ''));
+  if (apps.length) apps.forEach(a => {
+    const parts = [APPLICATION_STATUS[a.status] || a.status || '–'];
+    if (a.summeChf != null && a.summeChf !== '') parts.push(`beantragt ${fmtChf(a.summeChf)}`);
+    if (a.zugesagtChf != null && a.zugesagtChf !== '') parts.push(`zugesagt ${fmtChf(a.zugesagtChf)}`);
+    if (a.einreichdatum) parts.push(`eingereicht ${fmtDate(a.einreichdatum)}`);
+    out.push(`- **${foundationFullName(a.foundationId)}** — ${parts.join(' · ')}`);
+    const profile = profileForFoundationId(a.foundationId);
+    const fehlend = (profile?.requiredBlocks || []).filter(rb => rb.required &&
+      !candidateBlocksForProject(p).some(b => normBlockType(b.blockType) === normBlockType(rb.blockType)));
+    if (fehlend.length) out.push(`  - Fehlende Pflicht-Bausteine: ${fehlend.map(rb => BLOCKTYPE_LABEL[rb.blockType] || rb.blockType).join(', ')}`);
+  });
+  else out.push('(noch keine Anträge)');
+  out.push('');
+  return out;
+}
+
+function exportProjectsMd() {
+  downloadListExportMd({
+    title: 'Projekte', fileStem: 'projekte',
+    emptyMsg: 'Keine Projekte in der aktuellen Auswahl.',
+    list: getFilteredProjects(),
+    total: localData.projects.filter(p => !p.deleted).length,
+    filters: describeListFilters('prj-search', ['prj-filter-traeger', 'prj-filter-status']),
+    entryTitle: p => p.titel || '(ohne Titel)',
+    entryLines: projectExportLines,
+  });
+}
+
+// D-092: Anträge — Tabs Übersicht / Anforderungsprofil / Bausteine / Dokument.
+// Bausteine nur lesend: Anordnung aus a.blockArrangement plus noch nicht
+// angeordnete Kandidaten (wie reconcileBlockArrangement, aber ohne zu speichern);
+// Bausteintexte werden nicht mitexportiert (lägen auf GitHub, siehe Kontextpaket).
+function applicationExportLines(a) {
+  const out = [];
+  const project = localData.projects.find(p => p.id === a.projectId);
+  const person = a.ansprechpersonId ? (localData.persons || []).find(x => x.id === a.ansprechpersonId) : null;
+  const overview = kvLines([
+    ['Träger', a.traegerId ? traegerName(a.traegerId) : null],
+    ['Stiftung', a.foundationId ? foundationFullName(a.foundationId) : null],
+    ['Projekt', a.projectId ? projectTitle(a.projectId) : null],
+    ['Status', APPLICATION_STATUS[a.status] || a.status],
+    ['Beantragte Summe', a.summeChf != null && a.summeChf !== '' ? fmtChf(a.summeChf) : null],
+    ['Zugesagte Summe', a.zugesagtChf != null && a.zugesagtChf !== '' ? fmtChf(a.zugesagtChf) : null],
+    ['Einreichdatum', a.einreichdatum ? fmtDate(a.einreichdatum) : null],
+    ['Entscheid erwartet', a.entscheidErwartet ? fmtDate(a.entscheidErwartet) : null],
+    ['Entscheid eingegangen', a.entscheidEingegangen ? fmtDate(a.entscheidEingegangen) : null],
+    ['Reporting fällig', a.reportingFaellig ? fmtDate(a.reportingFaellig) : null],
+    ['Ansprechperson', person ? `${person.name}${person.rolle ? ' (' + person.rolle + ')' : ''}${person.email ? ' · ' + person.email : ''}${person.telefon ? ' · ' + person.telefon : ''}` : null],
+    ['Notizen', a.notes],
+    ['Abschlussnotiz', a.abschlussnotiz],
+  ]);
+  out.push('### Übersicht', ...(overview.length ? overview : ['(keine Angaben)']), '');
+
+  out.push('### Anforderungsprofil');
+  if (!a.foundationId) out.push('(keine Stiftung gewählt)');
+  else out.push(...requirementCheckLines(profileForFoundationId(a.foundationId), project));
+  out.push('');
+
+  out.push('### Bausteine');
+  if (!project) out.push('(kein Projekt gewählt)');
+  else {
+    const candidates = candidateBlocksForProject(project);
+    const ids = new Set(candidates.map(b => b.id));
+    const entries = (a.blockArrangement || []).filter(e => ids.has(e.blockId));
+    const known = new Set(entries.map(e => e.blockId));
+    candidates.forEach(b => { if (!known.has(b.id)) entries.push({ blockId: b.id, included: true, variantKey: null }); });
+    if (!entries.length) out.push('(keine Bausteine verfügbar)');
+    entries.forEach((e, i) => {
+      const b = findBlock(e.blockId); if (!b) return;
+      const key = e.variantKey || largestVariantKey(b);
+      const vLabel = key ? (VARIANT_KEY_LABEL[key] || key) : 'kein Text';
+      out.push(`${i + 1}. ${e.included === false ? '[ausgeschlossen] ' : ''}${b.titel} (${BLOCKTYPE_LABEL[b.blockType] || b.blockType || '–'}) · Variante: ${e.variantKey ? vLabel : 'automatisch (' + vLabel + ')'}`);
+    });
+  }
+  out.push('');
+
+  out.push('### Dokument');
+  const doc = a.finalDocument;
+  out.push(doc ? `- ${doc.name}${doc.size ? ' · ' + fmtFileSize(doc.size) : ''}${doc.uploadedAt ? ' · hochgeladen ' + fmtDate(doc.uploadedAt.slice(0, 10)) : ''}` : '(kein Dokument hochgeladen)');
+  out.push('');
+  return out;
+}
+
+function exportApplicationsMd() {
+  downloadListExportMd({
+    title: 'Anträge', fileStem: 'antraege',
+    emptyMsg: 'Keine Anträge in der aktuellen Auswahl.',
+    list: getFilteredApplications(),
+    total: localData.applications.filter(a => !a.deleted).length,
+    filters: describeListFilters('app-search', ['app-filter-traeger', 'app-filter-status']),
+    entryTitle: a => `${foundationFullName(a.foundationId)} — ${projectTitle(a.projectId)}`,
+    entryLines: applicationExportLines,
+  });
 }
 
 function projectDetailLines(p) {
@@ -6672,6 +6868,7 @@ function bindEvents() {
   $('fnd-split-import').addEventListener('click', () => openImportModal('foundations'));
   $('fnd-split-export').addEventListener('click', exportFoundationsMd);
   $('prj-split-import').addEventListener('click', () => openImportModal('projects'));
+  $('prj-split-export').addEventListener('click', exportProjectsMd);
   $('blk-split-import').addEventListener('click', () => openImportModal('blocks'));
 
   // Suche (D-036 — Listen, die tatsächlich wachsen; D-086: Bausteine/Prompts
@@ -6804,6 +7001,7 @@ function bindEvents() {
   // Träger/Stiftung/Projekt-Workspace)
   $('app-split-add').addEventListener('click', () => createNewApplication());
   $('app-split-import').addEventListener('click', () => openImportModal('applications'));
+  $('app-split-export').addEventListener('click', exportApplicationsMd);
   $('app-search').addEventListener('input', renderApplicationsSplitList);
   document.querySelectorAll('#app-workspace-content .workspace-tab').forEach(btn =>
     btn.addEventListener('click', () => switchAppTab(btn.dataset.atab))
