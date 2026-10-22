@@ -651,6 +651,131 @@ label {
 /* ── Modal-Zentrierung (PC-first, kein Bottom-Sheet mehr) ───────────── */
 .modal { max-width: 560px; margin: auto; border-radius: 18px; }
 .modal-back { align-items: center; }
+
+/* ── Notizen zur App (Kern, gemeinsam mit Feld E38 / Kommunikation v2 P-016) ──
+   Nutzt nur die Farbvariablen der App (--bg, --surface, --surface-2, --border,
+   --text, --text-dim, --accent, --danger). Alle Regeln hängen an .nz-Klassen,
+   damit globale button-/label-/input-Regeln der App sie nicht verbiegen. */
+.nz-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+.nz-pen[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
+.nz-panel {
+  position: fixed; z-index: var(--nz-z-panel, 150);
+  width: min(390px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow-y: auto;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.5);
+  padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 10px;
+  font-size: 14px; line-height: 1.45; text-align: left;
+}
+.nz-panel[hidden], .nz-overlay[hidden], .nz-toast[hidden] { display: none !important; }
+.nz-head { display: flex; align-items: center; gap: 8px; }
+.nz-head h2 {
+  flex: 1; margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.nz-x {
+  width: 30px; height: 30px; padding: 0; margin: 0; border: 0; border-radius: 6px;
+  background: none; color: var(--text-dim); font-size: 19px; line-height: 1; cursor: pointer;
+}
+.nz-x:hover { background: var(--surface-2); color: var(--text); }
+.nz-ort { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; font-size: 13px; color: var(--text); }
+.nz-ort-pfad { flex-basis: 100%; overflow-wrap: anywhere; }
+.nz-link {
+  background: none; border: 0; padding: 0; margin: 0; border-radius: 3px;
+  color: var(--accent); font: inherit; font-size: 12.5px; text-decoration: underline; cursor: pointer;
+}
+.nz-link:hover { background: none; opacity: 0.85; }
+.nz-arten, .nz-filter { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.nz-toggle {
+  height: 28px; padding: 0 11px; margin: 0; border-radius: 14px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+  font: inherit; font-size: 12.5px; line-height: 26px;
+}
+.nz-toggle:hover { color: var(--text); background: transparent; }
+.nz-toggle[aria-pressed="true"] { background: var(--surface-2); border-color: var(--accent); color: var(--text); }
+.nz-toggle[aria-pressed="true"]::before { content: "✓ "; color: var(--accent); }
+.nz-label {
+  display: block; margin: 0 0 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.nz-panel textarea.nz-text {
+  display: block; width: 100%; min-height: 88px; resize: vertical; margin: 0;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 7px;
+  padding: 8px 10px; font: inherit; font-size: 14px; line-height: 1.45;
+}
+.nz-panel textarea.nz-text:focus { border-color: var(--accent); }
+.nz-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nz-spacer { flex: 1; }
+.nz-kbd { font-size: 12px; color: var(--text-dim); }
+.nz-btn {
+  margin: 0; padding: 7px 14px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 600; line-height: 1.3; width: auto;
+}
+.nz-btn:hover { background: var(--border); }
+.nz-btn-primary { background: var(--accent); border-color: var(--accent); color: #0a0a0a; }
+.nz-btn-primary:hover { background: var(--accent); opacity: 0.88; }
+.nz-btn-ghost { background: transparent; border-color: transparent; color: var(--text-dim); }
+.nz-btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.nz-btn-danger { background: transparent; color: var(--text-dim); }
+.nz-btn-danger:hover { background: transparent; color: var(--danger); border-color: var(--danger); }
+.nz-panel :focus-visible, .nz-dialog :focus-visible, .nz-pen:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.nz-toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  z-index: var(--nz-z-toast, 2000); max-width: calc(100vw - 32px);
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 20px;
+  padding: 8px 16px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  pointer-events: none;
+}
+/* Alle Notizen */
+.nz-overlay {
+  position: fixed; inset: 0; z-index: var(--nz-z-dialog, 99);
+  background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.nz-dialog {
+  width: min(720px, 100%); max-height: min(88vh, 900px); display: flex; flex-direction: column;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5); font-size: 14px; line-height: 1.45; text-align: left;
+}
+.nz-dhead { display: flex; align-items: flex-start; gap: 10px; padding: 18px 20px 12px; border-bottom: 1px solid var(--border); }
+.nz-dhead-main { flex: 1; min-width: 0; }
+.nz-dhead h2 { margin: 0; font-size: 19px; font-weight: 700; color: var(--text); }
+.nz-dsub { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+.nz-dbody { padding: 4px 20px 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+.nz-dfoot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 20px; border-top: 1px solid var(--border); }
+.nz-group h3 {
+  margin: 0; padding: 16px 0 6px; border-bottom: 1px solid var(--border);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim);
+}
+.nz-list { list-style: none; margin: 0; padding: 0; }
+.nz-item { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.nz-main { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.nz-top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 12.5px; color: var(--text-dim); }
+.nz-art { font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--text); border: 1px solid var(--border); border-radius: 5px; padding: 0 6px; }
+.nz-itext { white-space: pre-wrap; overflow-wrap: anywhere; }
+.nz-item.nz-done .nz-itext { color: var(--text-dim); text-decoration: line-through; }
+.nz-iort { font-size: 12.5px; color: var(--text-dim); overflow-wrap: anywhere; }
+.nz-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; align-self: flex-start; }
+.nz-actions .nz-btn { padding: 4px 10px; font-size: 12.5px; }
+label.nz-erl {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 4px 0 0; cursor: pointer;
+  font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0; font-weight: 400;
+}
+label.nz-erl input { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--accent); }
+.nz-empty { color: var(--text-dim); padding: 24px 0; text-align: center; margin: 0; }
+@media (max-width: 600px) {
+  .nz-overlay { padding: 0; align-items: stretch; }
+  .nz-dialog { max-height: none; height: 100%; border-radius: 0; }
+}
+
+/* Fundraising: Panel über den Modals (z 100), Dialog knapp darunter, damit die
+   Bestätigung (#confirm-modal) beim Löschen darüber erscheint */
+:root { --nz-z-panel: 150; --nz-z-dialog: 99; --nz-z-toast: 400; }
 </style>
 <!-- D-076: JSZip (3.10.1) eingebettet statt CDN (löst D-022 ab) — die einzige
      externe Abhängigkeit verhinderte die Offline-Nutzung. Feature-Detection
@@ -684,7 +809,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 <datalist id="dl-vocab-mehrwerte"></datalist>
 
 <div class="app-shell">
-<nav class="sidebar">
+<nav class="sidebar" data-teil="Seitenleiste">
   <div class="sidebar-brand">Fundraising</div>
   <div class="sidebar-group">
     <button class="sidebar-item active" id="tab-traeger" title="Träger"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16"/><path d="M4 21h16"/><path d="M14 21v-4h4v4"/><path d="M8 8h.01M8 12h.01M8 16h.01M11 8h.01M11 12h.01M11 16h.01"/></svg><span class="sidebar-label">Träger</span></button>
@@ -708,6 +833,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   <div class="sidebar-footer">
     <button class="sync-status off" id="sync-btn" title="Sync nicht eingerichtet"><span class="dot"></span><span class="sidebar-label">Sync</span></button>
+    <button class="icon-btn" id="nz-pen" aria-label="Notiz" title="Notiz zur App: Fehler, Verbesserung, Idee – der Ort wird automatisch erfasst"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
     <button class="icon-btn" id="settings-btn" title="Menü"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <!-- Phase P, Punkt 6 (D-090): war zuvor 6x dupliziert oben in jeder
          Splitview-Kopfzeile (.split-list-toggle) — der Zustand war schon
@@ -715,8 +841,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
          nur der Button visuell dupliziert. Auf Nutzerwunsch zu einem
          einzigen Button hier neben dem Sidebar-Toggle zusammengefasst
          (gleiche Höhe, kein Höhen-/Abstand-Unterschied mehr). -->
-    <button class="icon-btn" id="list-toggle" title="Liste ein-/ausblenden"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <button class="icon-btn" id="sidebar-toggle" title="Sidebar ein-/ausklappen"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="icon-btn" id="list-toggle" data-notiz-ignore title="Liste ein-/ausblenden"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="icon-btn" id="sidebar-toggle" data-notiz-ignore title="Sidebar ein-/ausklappen"><svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
   </div>
 </nav>
 
@@ -724,13 +850,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   <!-- ── Träger (D-036: Splitview, kein Suchfeld — dauerhaft ~3 Einträge) ── -->
   <section class="screen active" id="screen-traeger">
     <div class="splitview">
-      <div class="split-list">
+      <div class="split-list" data-teil="Liste">
         <div class="split-list-header">
           <button type="button" class="split-add-btn" id="trg-split-add" title="Neuer Träger">+</button>
         </div>
         <div id="trg-split-list"></div>
       </div>
-      <div class="workspace" id="trg-workspace">
+      <div class="workspace" id="trg-workspace" data-teil="Arbeitsbereich">
         <div class="workspace-empty" id="trg-workspace-empty">Wähle einen Träger aus der Liste, oder lege einen neuen an.</div>
         <div id="trg-workspace-content" style="display:none">
           <div class="workspace-header"><h2 id="trgw-title">—</h2></div>
@@ -750,7 +876,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   <!-- ── Stiftungen (Splitview) ── -->
   <section class="screen" id="screen-foundations">
     <div class="splitview">
-      <div class="split-list">
+      <div class="split-list" data-teil="Liste">
         <div class="split-list-header">
           <input type="search" class="split-search" id="fnd-search" placeholder="Stiftung suchen…">
           <button type="button" class="split-add-btn" id="fnd-split-add" title="Neue Stiftung">+</button>
@@ -773,7 +899,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="fnd-list"></div>
       </div>
-      <div class="workspace" id="fnd-workspace">
+      <div class="workspace" id="fnd-workspace" data-teil="Arbeitsbereich">
         <div class="workspace-empty" id="fnd-workspace-empty">Wähle eine Stiftung aus der Liste, oder lege eine neue an.</div>
         <div id="fnd-workspace-content" style="display:none">
           <div class="workspace-header"><h2 id="fndw-title">—</h2></div>
@@ -795,7 +921,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   <!-- ── Projekte (Splitview) ── -->
   <section class="screen" id="screen-projects">
     <div class="splitview">
-      <div class="split-list">
+      <div class="split-list" data-teil="Liste">
         <div class="split-list-header">
           <input type="search" class="split-search" id="prj-search" placeholder="Projekt suchen…">
           <button type="button" class="split-add-btn" id="prj-split-add" title="Neues Projekt">+</button>
@@ -817,7 +943,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="prj-list"></div>
       </div>
-      <div class="workspace" id="prj-workspace">
+      <div class="workspace" id="prj-workspace" data-teil="Arbeitsbereich">
         <div class="workspace-empty" id="prj-workspace-empty">Wähle ein Projekt aus der Liste, oder lege ein neues an.</div>
         <div id="prj-workspace-content" style="display:none">
           <div class="workspace-header">
@@ -842,7 +968,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
        ersetzt die frühere flache Tabelle + das app-modal) ── -->
   <section class="screen" id="screen-applications">
     <div class="splitview">
-      <div class="split-list">
+      <div class="split-list" data-teil="Liste">
         <div class="split-list-header">
           <input type="search" class="split-search" id="app-search" placeholder="Antrag suchen…">
           <button type="button" class="split-add-btn" id="app-split-add" title="Neuer Antrag">+</button>
@@ -863,7 +989,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="app-list"></div>
       </div>
-      <div class="workspace" id="app-workspace">
+      <div class="workspace" id="app-workspace" data-teil="Arbeitsbereich">
         <div class="workspace-empty" id="app-workspace-empty">Wähle einen Antrag aus der Liste, oder lege einen neuen an.</div>
         <div id="app-workspace-content" style="display:none">
           <div class="workspace-header"><h2 id="appw-title">—</h2></div>
@@ -884,7 +1010,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   </section>
 
   <!-- ── Pipeline (kein Splitview, D-036): Fortschritt + Timeline ── -->
-  <section class="screen" id="screen-pipeline">
+  <section class="screen" id="screen-pipeline" data-teil="Arbeitsbereich">
     <div class="screen-scroll">
       <div class="modal-section-title" style="margin-top:0">Fortschritt</div>
       <div class="filter-bar">
@@ -906,7 +1032,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   <!-- ── Bibliothek (Bausteine, Splitview) ── -->
   <section class="screen" id="screen-blocks">
     <div class="splitview">
-      <div class="split-list">
+      <div class="split-list" data-teil="Liste">
         <div class="split-list-header">
           <input type="search" class="split-search" id="blk-search" placeholder="Baustein suchen…">
           <button type="button" class="split-add-btn" id="blk-split-add" title="Neuer Baustein">+</button>
@@ -927,7 +1053,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="blk-list"></div>
       </div>
-      <div class="workspace" id="blk-workspace">
+      <div class="workspace" id="blk-workspace" data-teil="Arbeitsbereich">
         <div class="workspace-empty">Baustein aus der Liste wählen oder über + einen neuen anlegen.</div>
       </div>
     </div>
@@ -937,7 +1063,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
        im Kontextpaket-Fluss verdrahtet (siehe D-060). -->
   <section class="screen" id="screen-prompts">
     <div class="splitview">
-      <div class="split-list">
+      <div class="split-list" data-teil="Liste">
         <div class="split-list-header">
           <input type="search" class="split-search" id="prm-search" placeholder="Prompt suchen…">
           <button type="button" class="split-add-btn" id="prm-split-add" title="Neue Prompt-Vorlage">+</button>
@@ -945,7 +1071,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="prm-list"></div>
       </div>
-      <div class="workspace" id="prm-workspace">
+      <div class="workspace" id="prm-workspace" data-teil="Arbeitsbereich">
         <div class="workspace-empty">Prompt-Vorlage aus der Liste wählen oder über + eine neue anlegen.</div>
       </div>
     </div>
@@ -953,7 +1079,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   <!-- ── Analyse (D-047: eigene Sidebar-Gruppe, Inhalt folgt Phase E) ── -->
   <!-- ── Analyse (D-047: eigene Sidebar-Gruppe, rein einsehbar) ── -->
-  <section class="screen" id="screen-analyse">
+  <section class="screen" id="screen-analyse" data-teil="Arbeitsbereich">
     <div class="screen-scroll">
       <div id="analyse-list"></div>
     </div>
@@ -964,7 +1090,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 <!-- ══════════════════ MODALS ══════════════════ -->
 
 <!-- Gear Menu -->
-<div class="modal-back" id="gear-modal">
+<div class="modal-back" id="gear-modal" data-teil="Zahnrad-Menü">
   <div class="modal" style="padding:8px 0 calc(8px + env(safe-area-inset-bottom))">
     <button class="gear-action" id="gear-settings">Sync-Einstellungen</button>
     <button class="gear-action" id="gear-passung" style="display:none">Passung zuordnen (Migration)</button>
@@ -976,7 +1102,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
 <!-- Passung-Zuordnungs-Modal (D-039: einmalige manuelle Migration von
      foundation.passung (Skalar) auf passungByTraeger, siehe migrateDataSchema) -->
-<div class="modal-back" id="pssg-modal">
+<div class="modal-back" id="pssg-modal" data-teil="Passung">
   <div class="modal">
     <h2>Passung zuordnen</h2>
     <p class="modal-hint">
@@ -998,7 +1124,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
      wird als Fehler markiert und übersprungen. Ein Treffer auf Name/Kürzel
      eines bereits vorhandenen Datensatzes aktualisiert diesen statt eine
      Dublette anzulegen. Träger selbst sind bewusst nicht importierbar. -->
-<div class="modal-back" id="import-modal">
+<div class="modal-back" id="import-modal" data-teil="Import">
   <div class="modal">
     <h2>Daten importieren</h2>
     <p class="modal-hint">
@@ -1045,7 +1171,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <!-- Settings Modal -->
-<div class="modal-back" id="settings-modal">
+<div class="modal-back" id="settings-modal" data-teil="Einstellungen">
   <div class="modal">
     <h2>Sync-Einstellungen</h2>
     <p class="modal-hint">
@@ -1076,7 +1202,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <!-- Diagnose Modal -->
-<div class="modal-back" id="diag-modal">
+<div class="modal-back" id="diag-modal" data-teil="Diagnose">
   <div class="modal">
     <h2>Diagnose</h2>
     <div id="diag-rows"></div>
@@ -1105,7 +1231,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
      direkt in #blk-workspace (screen-blocks), siehe renderBlockWorkspace(). -->
 
 <!-- Variant-Editor Modal -->
-<div class="modal-back" id="bved-modal">
+<div class="modal-back" id="bved-modal" data-teil="Varianten-Editor">
   <div class="modal">
     <h2 id="bved-title">Variante bearbeiten</h2>
     <div id="bved-status" style="font-size:13px;color:var(--text-dim);margin-bottom:8px">Lädt…</div>
@@ -1123,7 +1249,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <!-- Konflikt-Dialog -->
-<div class="modal-back" id="bvc-modal">
+<div class="modal-back" id="bvc-modal" data-teil="Konflikt beim Speichern">
   <div class="modal">
     <h2>Konflikt beim Speichern</h2>
     <p style="font-size:13px;color:var(--text-dim);margin-bottom:10px">
@@ -1152,7 +1278,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
      zu den übrigen risikobehafteten Dialogen dieser App. Zuletzt im DOM
      platziert, damit er auch über einem bereits offenen Modal (z. B.
      Sync-Einstellungen) sichtbar liegt. -->
-<div class="modal-back" id="confirm-modal">
+<div class="modal-back" id="confirm-modal" data-notiz-ignore>
   <div class="modal">
     <h2>Bestätigen</h2>
     <p class="dialog-message" id="confirm-message"></p>
@@ -1168,7 +1294,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
      denselben Dialog-Stil wie #confirm-modal. Anders als beim
      Bestätigungs-Dialog gibt es hier keine Gefahr eines Datenverlusts durch
      versehentliches Schliessen — daher in ESCAPE_CLOSABLE_MODALS. -->
-<div class="modal-back" id="alert-modal">
+<div class="modal-back" id="alert-modal" data-notiz-ignore>
   <div class="modal">
     <h2>Hinweis</h2>
     <p class="dialog-message" id="alert-message"></p>
@@ -1195,7 +1321,8 @@ const POLL_MS       = 60_000;            // D-014
 
 const TOP_LEVEL_ARRAYS = [
   'traeger','foundations','projects','applications',
-  'blocks','persons','requirementProfiles','promptTemplates'
+  'blocks','persons','requirementProfiles','promptTemplates',
+  'notizen'   // Notizen zur App (Rückmeldungen, mit automatisch erfasstem Ort)
 ];
 
 // D-029: ein einziges gemeinsames Repo (Login-artig) statt Multi-Repo-Routing
@@ -1206,7 +1333,7 @@ const TOP_LEVEL_ARRAYS = [
 const EMPTY_DATA = () => ({
   schemaVersion: 5,
   traeger: [], foundations: [], projects: [], applications: [],
-  blocks: [], persons: [], requirementProfiles: [], promptTemplates: [],
+  blocks: [], persons: [], requirementProfiles: [], promptTemplates: [], notizen: [],
   modified: nowIso()
 });
 
@@ -2202,6 +2329,7 @@ function refreshCurrentTab() {
   if (currentTab === 'blocks')       { renderBlocks(); if (selectedBlkId && !isEditingWithin('blk-workspace')) selectBlock(selectedBlkId); }
   if (currentTab === 'prompts')      { renderPrompts(); if (selectedPtId && !isEditingWithin('prm-workspace')) selectPrompt(selectedPtId); }
   if (currentTab === 'analyse')      renderAnalyse();
+  if (window.NZ) NZ.refresh();   // offener Dialog «Alle Notizen» nach Sync
 }
 
 // ─── Dropdown-Helfer ──────────────────────────────────────────────────────────
@@ -7076,5 +7204,547 @@ async function clearSettings() {
 
 </script>
 <div class="toast" id="toast"></div>
+<script>
+/* =========================================================================
+   Notizen zur App – Kern (gemeinsam für Fundraising, Rechnungsverwaltung,
+   Zeiterfassung; Vorbild Feld E38 und Kommunikation v2 P-016).
+   Rückmeldungen beim Benutzen (Fehler · Verbesserung · Idee). Der Ort wird
+   beim Öffnen erfasst: Bereich › Ansicht › Datensatz › Teil › Detail.
+   - Teil = zuletzt angeklickte oder fokussierte Region mit data-teil
+   - Detail = Feld, Abschnitt oder Bedienelement im Teil (aus dem DOM)
+   Speicherung, Sync und Wiederherstellung liefert der Adapter der App (cfg).
+   ========================================================================= */
+function NotizenKern(cfg) {
+  'use strict';
+  const ARTEN = ['Fehler', 'Verbesserung', 'Idee'];
+  const K = cfg.keyPrefix;                           // z. B. 'fr_notiz'
+  const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const ls = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+  };
+  const nowIso = () => new Date().toISOString();
+
+  let art = ARTEN.includes(ls.get(K + '_art')) ? ls.get(K + '_art') : 'Verbesserung';
+  let filter = ls.get(K + '_filter') === 'alle' ? 'alle' : 'offen';
+  let ort = null;                                    // Ort des Entwurfs; null = «Allgemein»
+  let last = { teil: '', detail: '', rec: null };    // zuletzt angeklickter/fokussierter Teil
+
+  /* ---------- Live-Region und Toast ---------- */
+  const live = document.createElement('div');
+  live.className = 'nz-sr';
+  live.setAttribute('aria-live', 'polite');
+  live.setAttribute('role', 'status');
+  document.body.appendChild(live);
+  function announce(msg) {
+    live.textContent = '';
+    setTimeout(() => { live.textContent = msg; }, 30);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'nz-toast';
+  toast.setAttribute('aria-hidden', 'true');        // vorgelesen wird über die Live-Region
+  toast.hidden = true;
+  document.body.appendChild(toast);
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, 3000);
+    announce(msg);
+  }
+
+  /* ---------- Ort ---------- */
+  function clean(s) {
+    return String(s || '').replace(/\s+/g, ' ').trim()
+      .replace(/\s*\((obligatorisch|optional|kann leer bleiben)\)\s*/gi, ' ')
+      .replace(/\s*\(\d+\)$/, '')
+      .replace(/^\d+\s*·\s*/, '')
+      .replace(/[\s:›…↗▸▾*]+$/, '')
+      .trim();
+  }
+  function controlName(c) {
+    if (c.labels && c.labels[0]) return clean(c.labels[0].textContent);
+    const prev = c.previousElementSibling;
+    if (prev && prev.tagName === 'LABEL') return clean(prev.textContent);
+    const wrapPrev = c.parentElement && c.parentElement.previousElementSibling;
+    if (wrapPrev && wrapPrev.tagName === 'LABEL' && !c.parentElement.querySelector('label')) return clean(wrapPrev.textContent);
+    if (/^(BUTTON|A|SUMMARY)$/.test(c.tagName)) return clean(c.getAttribute('aria-label') || c.textContent) || clean(c.getAttribute('title'));
+    return clean(c.getAttribute('aria-label') || c.getAttribute('placeholder') || c.getAttribute('title') || '');
+  }
+  function headingIn(el, region) {
+    for (let n = el; n && n !== region.parentElement; n = n.parentElement) {
+      if (n.tagName === 'DETAILS' && n.open) {
+        const s = n.querySelector(':scope > summary');
+        if (s) return clean(s.textContent);
+      }
+      const h = n.querySelector && n.querySelector(':scope > h2, :scope > h3, :scope > h4, :scope > legend, :scope > .nz-h');
+      if (h && n !== region) return clean(h.textContent);
+    }
+    return '';
+  }
+  function defaultDetail(el, region) {
+    const c = el.closest('input, select, textarea, button, a, summary, label');
+    if (c && region.contains(c)) {
+      if (c.tagName === 'SUMMARY') return clean(c.textContent);
+      if (c.tagName === 'LABEL') return clean(c.textContent);
+      return controlName(c);
+    }
+    return headingIn(el, region);
+  }
+  function track(e) {
+    const t = e.target;
+    if (!t || !t.closest || t.closest('[data-notiz-ignore]')) return;
+    if (e.type === 'focusin') {
+      // nur echte Fokuswechsel; nicht Fokus nach Neuzeichnen oder aus einem
+      // eben geschlossenen Fenster
+      const rt = e.relatedTarget;
+      if (!rt || !rt.isConnected || !rt.getClientRects().length) return;
+    }
+    const region = t.closest('[data-teil]');
+    if (!region) return;
+    const teil = region.dataset.teil;
+    if (t === region && last.teil === teil) return;   // Klick auf den Hintergrund (z. B. Fenster schliessen)
+    let detail = cfg.detailOf ? cfg.detailOf(t, teil, region) : undefined;
+    if (detail === undefined) detail = defaultDetail(t, region);
+    if (detail === teil) detail = '';
+    // Schliessknöpfe (Abbrechen, Schliessen, ×) sind kein Ort: das zuletzt erfasste Detail bleibt
+    if (/^(abbrechen|schliessen|×|x)$/i.test(detail)) {
+      if (last.teil === teil) return;
+      detail = '';
+    }
+    last = { teil, detail, rec: cfg.recordFor ? cfg.recordFor(teil, t) : null };
+  }
+  document.addEventListener('pointerdown', track, true);
+  document.addEventListener('focusin', track, true);
+
+  function capture() {
+    const b = cfg.base(last) || {};
+    return { bereich: b.bereich || '', ansicht: b.ansicht || '', label: b.label || '', id: b.id || '',
+      teil: last.teil, detail: last.detail };
+  }
+  function pfad(o) {
+    const p = [];
+    if (o) [o.bereich, o.ansicht, o.label, o.teil, o.detail].forEach(x => { if (x && p[p.length - 1] !== x) p.push(x); });
+    return p.length ? p.join(' › ') : 'Allgemein';
+  }
+  function gruppe(o) {
+    if (!o || !o.bereich) return 'Allgemein';
+    return o.teil && o.teil !== o.bereich ? o.bereich + ' › ' + o.teil : o.bereich;
+  }
+  function rang(o) {
+    const b = o && o.bereich ? cfg.bereichReihe.indexOf(o.bereich) : -2;
+    const t = o && o.teil ? cfg.teilReihe.indexOf(o.teil) : -1;
+    return [b === -2 ? 999 : (b < 0 ? 500 : b), t < 0 && o && o.teil ? 500 : t];
+  }
+  function datum(iso, mitZeit) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const p = n => String(n).padStart(2, '0');
+    const s = `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
+    return mitZeit ? `${s}, ${p(d.getHours())}:${p(d.getMinutes())}` : s;
+  }
+
+  /* ---------- Panel ---------- */
+  const pen = document.getElementById(cfg.penId);
+  pen.classList.add('nz-pen');
+  pen.setAttribute('aria-expanded', 'false');
+  pen.setAttribute('aria-controls', 'nz-panel');
+  pen.setAttribute('data-notiz-ignore', '');
+  const panel = document.createElement('section');
+  panel.className = 'nz-panel';
+  panel.id = 'nz-panel';
+  panel.hidden = true;
+  panel.setAttribute('aria-labelledby', 'nz-title');
+  panel.setAttribute('data-notiz-ignore', '');
+  panel.innerHTML = `
+    <div class="nz-head">
+      <h2 id="nz-title">Notiz</h2>
+      <button type="button" class="nz-x" data-nz="zu" aria-label="Notiz schliessen">×</button>
+    </div>
+    <div class="nz-ort">
+      <span class="nz-ort-pfad"><span class="nz-sr">Ort: </span><span id="nz-ort"></span></span>
+      <button type="button" class="nz-link" data-nz="ort">Ort neu setzen</button>
+      <button type="button" class="nz-link" data-nz="ohne">ohne Ort</button>
+    </div>
+    <div class="nz-arten" role="group" aria-label="Art" id="nz-arten"></div>
+    <div>
+      <label class="nz-label" for="nz-text">Was ist dir aufgefallen?</label>
+      <textarea class="nz-text" id="nz-text" rows="4"></textarea>
+    </div>
+    <div class="nz-foot">
+      <button type="button" class="nz-btn nz-btn-primary" data-nz="speichern" aria-keyshortcuts="Meta+Enter Control+Enter">speichern</button>
+      <span class="nz-kbd" aria-hidden="true">${IS_MAC ? '⌘↵' : 'Strg+↵'}</span>
+      <span class="nz-spacer"></span>
+      <button type="button" class="nz-btn nz-btn-ghost" data-nz="alle">Alle Notizen ›</button>
+    </div>`;
+  pen.insertAdjacentElement('afterend', panel);      // Tab geht vom Stift direkt ins Panel
+  const $p = sel => panel.querySelector(sel);
+  const text = $p('#nz-text');
+
+  try {
+    const d = JSON.parse(ls.get(K + '_entwurf') || 'null');
+    if (d && d.text) { text.value = d.text; ort = d.ort || null; }
+  } catch (e) {}
+  function saveEntwurf() {
+    if (text.value.trim()) ls.set(K + '_entwurf', JSON.stringify({ text: text.value, ort }));
+    else ls.del(K + '_entwurf');
+  }
+  function renderOrt() { $p('#nz-ort').textContent = pfad(ort); }
+  function renderArten() {
+    $p('#nz-arten').innerHTML = ARTEN.map(a =>
+      `<button type="button" class="nz-toggle" data-art="${a}" aria-pressed="${a === art}">${a}</button>`).join('');
+  }
+  function isOpen() { return !panel.hidden; }
+  function place() {
+    panel.style.top = panel.style.bottom = panel.style.left = panel.style.right = '';
+    cfg.place(panel);
+  }
+  function open() {
+    if (!text.value.trim()) ort = capture();          // Ort nur bei leerem Entwurf neu erfassen
+    renderOrt(); renderArten();
+    panel.hidden = false;
+    place();
+    pen.setAttribute('aria-expanded', 'true');
+    text.focus();
+    text.selectionStart = text.selectionEnd = text.value.length;
+  }
+  function close(returnFocus) {
+    if (!isOpen()) return;
+    saveEntwurf();
+    panel.hidden = true;
+    pen.setAttribute('aria-expanded', 'false');
+    if (returnFocus) pen.focus();
+  }
+  function save() {
+    const t = text.value.trim();
+    if (!t) { showToast('Notiz ist leer, nichts gespeichert'); text.focus(); return; }
+    const id = 'nz_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    cfg.store.put(id, { id, datum: nowIso(), art, text: t, ort: ort ? { ...ort } : null, erledigt: false });
+    text.value = ''; ort = null; saveEntwurf();
+    close(true);
+    if (dlgOpen()) renderList();
+    showToast('Notiz gespeichert');
+  }
+  pen.addEventListener('click', () => { if (isOpen()) close(true); else open(); });
+  panel.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.art) {
+      art = b.dataset.art; ls.set(K + '_art', art); renderArten();
+      $p(`[data-art="${art}"]`).focus(); return;
+    }
+    const a = b.dataset.nz;
+    if (a === 'zu') close(true);
+    if (a === 'speichern') save();
+    if (a === 'alle') openDlg();
+    if (a === 'ort') { ort = capture(); renderOrt(); saveEntwurf(); announce('Ort: ' + pfad(ort)); text.focus(); }
+    if (a === 'ohne') { ort = null; renderOrt(); saveEntwurf(); announce('Ort: Allgemein'); text.focus(); }
+  });
+  text.addEventListener('input', saveEntwurf);
+  window.addEventListener('pagehide', saveEntwurf);
+  panel.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
+    else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); save(); }
+  });
+  window.addEventListener('resize', () => { if (isOpen()) place(); });
+
+  /* ---------- Dialog «Alle Notizen» ---------- */
+  const ov = document.createElement('div');
+  ov.className = 'nz-overlay';
+  ov.hidden = true;
+  ov.setAttribute('data-notiz-ignore', '');
+  ov.innerHTML = `
+    <div class="nz-dialog" role="dialog" aria-modal="true" aria-labelledby="nz-dtitle">
+      <div class="nz-dhead">
+        <div class="nz-dhead-main">
+          <div class="nz-dsub">Rückmeldungen zur App</div>
+          <h2 id="nz-dtitle">Notizen</h2>
+          <div class="nz-dsub" id="nz-count"></div>
+        </div>
+        <button type="button" class="nz-x" data-nz="dzu" aria-label="Schliessen">×</button>
+      </div>
+      <div class="nz-dbody" id="nz-dbody"></div>
+      <div class="nz-dfoot">
+        <div class="nz-filter" role="group" aria-label="Anzeigen">
+          <button type="button" class="nz-toggle" data-filter="offen">offen</button>
+          <button type="button" class="nz-toggle" data-filter="alle">alle</button>
+        </div>
+        <span class="nz-spacer"></span>
+        <button type="button" class="nz-btn nz-btn-ghost" data-nz="neu">+ Notiz</button>
+        <button type="button" class="nz-btn nz-btn-primary" data-nz="kopie">als Text kopieren</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const $d = sel => ov.querySelector(sel);
+  function dlgOpen() { return !ov.hidden; }
+
+  function sortiert(list) {
+    return list.slice().sort((a, b) => {
+      const [ba, ta] = rang(a.ort), [bb, tb] = rang(b.ort);
+      return ba - bb || ta - tb || gruppe(a.ort).localeCompare(gruppe(b.ort), 'de') || (a.datum || '').localeCompare(b.datum || '');
+    });
+  }
+  function gruppiert(list) {
+    const out = [];
+    sortiert(list).forEach(n => {
+      const g = gruppe(n.ort);
+      if (!out.length || out[out.length - 1][0] !== g) out.push([g, []]);
+      out[out.length - 1][1].push(n);
+    });
+    return out;
+  }
+  function renderList() {
+    const alle = cfg.store.list();
+    const offen = alle.filter(n => !n.erledigt);
+    const list = filter === 'offen' ? offen : alle;
+    $d('#nz-count').textContent = `${offen.length} offen · ${alle.length} insgesamt`;
+    ov.querySelectorAll('[data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
+    const body = $d('#nz-dbody');
+    if (!list.length) {
+      body.innerHTML = `<p class="nz-empty">${alle.length ? 'Keine offenen Notizen.' : 'Noch keine Notizen. Der Stift hält eine fest.'}</p>`;
+      return;
+    }
+    body.innerHTML = gruppiert(list).map(([g, arr], gi) => `
+      <section class="nz-group" aria-labelledby="nz-g-${gi}">
+        <h3 id="nz-g-${gi}">${esc(g)}</h3>
+        <ul class="nz-list">${arr.map(n => {
+          const tid = 'nz-t-' + esc(n.id);
+          const hin = n.ort && n.ort.bereich && cfg.canGoto(n.ort);
+          return `<li class="nz-item${n.erledigt ? ' nz-done' : ''}" data-id="${esc(n.id)}">
+            <div class="nz-main">
+              <div class="nz-top"><span class="nz-art">${esc(n.art)}</span><span>${esc(datum(n.datum, true))}</span></div>
+              <div class="nz-itext" id="${tid}">${esc(n.text)}</div>
+              <div class="nz-iort"><span class="nz-sr">Ort: </span>${esc(pfad(n.ort))}</div>
+            </div>
+            <div class="nz-actions">
+              <label class="nz-erl"><input type="checkbox" data-nzi="erl" ${n.erledigt ? 'checked' : ''} aria-describedby="${tid}">erledigt</label>
+              ${hin ? `<button type="button" class="nz-btn nz-btn-ghost" data-nzi="hin" aria-describedby="${tid}">zur Stelle</button>` : ''}
+              <button type="button" class="nz-btn nz-btn-danger" data-nzi="del" aria-describedby="${tid}">Löschen</button>
+            </div>
+          </li>`;
+        }).join('')}</ul>
+      </section>`).join('');
+  }
+  function focusNach(id, idx) {
+    const items = Array.from(ov.querySelectorAll('.nz-item'));
+    const t = items.find(li => li.dataset.id === id) || items[Math.min(idx, items.length - 1)];
+    (t ? t.querySelector('[data-nzi="erl"]') : $d('[data-nz="kopie"]')).focus();
+  }
+  function openDlg() {
+    close(false);
+    renderList();
+    ov.hidden = false;
+    const first = ov.querySelector('[data-nzi="erl"]');
+    (first || $d('[data-nz="kopie"]')).focus();
+  }
+  function closeDlg(focusPen) {
+    ov.hidden = true;
+    if (focusPen) pen.focus();
+  }
+  ov.addEventListener('change', e => {
+    const cb = e.target.closest('[data-nzi="erl"]');
+    if (!cb) return;
+    const li = cb.closest('.nz-item');
+    const idx = Array.from(ov.querySelectorAll('.nz-item')).indexOf(li);
+    cfg.store.put(li.dataset.id, { erledigt: cb.checked });
+    renderList();
+    announce(cb.checked ? 'Als erledigt markiert' : 'Wieder offen');
+    focusNach(li.dataset.id, idx);
+  });
+  ov.addEventListener('click', async e => {
+    if (e.target === ov) { closeDlg(true); return; }
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.filter) {
+      filter = b.dataset.filter; ls.set(K + '_filter', filter); renderList();
+      $d(`[data-filter="${filter}"]`).focus(); return;
+    }
+    const a = b.dataset.nz, ai = b.dataset.nzi;
+    if (a === 'dzu') closeDlg(true);
+    if (a === 'neu') { closeDlg(false); open(); }
+    if (a === 'kopie') copy();
+    if (!ai) return;
+    const li = b.closest('.nz-item'), id = li.dataset.id;
+    const idx = Array.from(ov.querySelectorAll('.nz-item')).indexOf(li);
+    if (ai === 'hin') {
+      const n = cfg.store.list().find(x => x.id === id);
+      closeDlg(false);
+      Promise.resolve(cfg.goto(n.ort)).then(msg => { if (msg) showToast(msg); });
+    }
+    if (ai === 'del') {
+      const n = cfg.store.list().find(x => x.id === id);
+      const kurz = n.text.length > 60 ? n.text.slice(0, 57) + '…' : n.text;
+      if (!(await cfg.confirm(`Notiz «${kurz}» löschen?`))) { b.focus(); return; }
+      cfg.store.remove(id);
+      renderList();
+      announce('Notiz gelöscht');
+      focusNach(null, idx);
+    }
+  });
+  ov.addEventListener('keydown', e => {
+    if (cfg.modalOpen && cfg.modalOpen()) return;   // ein Fenster der App (Bestätigung) liegt darüber
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeDlg(true); return; }
+    if (e.key !== 'Tab') return;
+    // Fokus bleibt im Dialog
+    const f = Array.from(ov.querySelectorAll('button, input, [href], [tabindex]:not([tabindex="-1"])'))
+      .filter(x => !x.disabled && x.getClientRects().length);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  });
+
+  /* ---------- Als Text kopieren (nur offene) ---------- */
+  function markdown() {
+    const offen = cfg.store.list().filter(n => !n.erledigt);
+    const lines = [`# Notizen ${cfg.app} – ${datum(nowIso())}`];
+    gruppiert(offen).forEach(([g, arr]) => {
+      lines.push('', `## ${g}`, '');
+      arr.forEach(n => lines.push(`- [${n.art}] ${String(n.text || '').trim().replace(/\s*\n\s*/g, ' / ')} (${pfad(n.ort)}, ${datum(n.datum)})`));
+    });
+    return { text: lines.join('\n') + '\n', n: offen.length };
+  }
+  async function copyText(s) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(s); return true; }
+    } catch (e) {}
+    const ta = document.createElement('textarea');
+    ta.value = s; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    ov.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    ta.remove();
+    return ok;
+  }
+  async function copy() {
+    const { text: s, n } = markdown();
+    const btn = $d('[data-nz="kopie"]');
+    if (!n) { showToast('Keine offenen Notizen zum Kopieren'); return; }
+    const ok = await copyText(s);
+    btn.focus();
+    showToast(ok ? `${n} ${n === 1 ? 'offene Notiz' : 'offene Notizen'} kopiert` : 'Kopieren nicht möglich');
+  }
+
+  // Esc ausserhalb des Panels schliesst es ebenfalls (ohne Fokuswechsel), solange kein Fenster offen ist
+  // (Capture-Phase: läuft vor dem Esc-Handler der App, der ein Fenster schliessen würde)
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && dlgOpen() && !ov.contains(e.target)) {
+      if (cfg.modalOpen && cfg.modalOpen()) return;   // z. B. Bestätigung über dem Dialog
+      e.preventDefault(); e.stopPropagation(); closeDlg(true); return;
+    }
+    if (e.key !== 'Escape' || !isOpen() || dlgOpen() || panel.contains(e.target)) return;
+    if (cfg.modalOpen && cfg.modalOpen()) return;
+    close(false);
+  }, true);
+
+  return {
+    open, close, isOpen, openDlg, closeDlg, dlgOpen, capture, pfad, markdown, showToast, announce,
+    // nach einem Sync: neu zeichnen, Fokus auf demselben Bedienelement halten
+    refresh() {
+      if (!dlgOpen()) return;
+      const a = document.activeElement;
+      const li = a && a.closest && a.closest('.nz-item');
+      const key = li ? [li.dataset.id, a.dataset.nzi] : (a && ov.contains(a) && a.dataset ? [null, a.dataset.nz || a.dataset.filter] : null);
+      renderList();
+      if (!key) return;
+      const t = key[0]
+        ? ov.querySelector(`.nz-item[data-id="${CSS.escape(key[0])}"] [data-nzi="${key[1]}"]`)
+        : ov.querySelector(`[data-nz="${key[1]}"], [data-filter="${key[1]}"]`);
+      (t || $d('[data-nz="kopie"]')).focus();
+    },
+    get last() { return last; },
+  };
+}
+
+
+/* ---------- Adapter Fundraising ---------- */
+window.NZ = (function () {
+  if (!Array.isArray(localData.notizen)) localData.notizen = [];
+  const TABS = { traeger: 'Träger', foundations: 'Stiftungen', projects: 'Projekte', applications: 'Anträge',
+    pipeline: 'Pipeline', blocks: 'Bausteine', prompts: 'Prompts', analyse: 'Analyse' };
+  const TAB = Object.fromEntries(Object.entries(TABS).map(([k, v]) => [v, k]));
+  const FILTER = { projects: 'prj-filter-traeger', applications: 'app-filter-traeger', pipeline: 'pip-filter-traeger', blocks: 'blk-filter-traeger' };
+  // Reiter des Arbeitsbereichs als Teile: data-teil = Beschriftung des Reiters
+  document.querySelectorAll('.workspace-tab').forEach(b => {
+    const key = Object.entries(b.dataset).find(([k]) => /tab$/.test(k));
+    const ws = b.closest('.workspace');
+    if (!key || !ws) return;
+    const panel = document.getElementById(ws.id.slice(0, 3) + 'w-panel-' + key[1]);
+    if (panel) panel.dataset.teil = b.textContent.trim();
+  });
+  const live = (arr, id) => (localData[arr] || []).find(x => x.id === id && !x.deleted);
+  function datensatz() {
+    const t = currentTab;
+    if (t === 'traeger' && selectedTrgId) { const r = live('traeger', selectedTrgId); return r && { label: r.nameKurz || r.nameVoll, id: r.id }; }
+    if (t === 'foundations' && selectedFndId) { const r = live('foundations', selectedFndId); return r && { label: r.nameKurz || r.nameVoll, id: r.id }; }
+    if (t === 'projects' && selectedPrjId) { const r = live('projects', selectedPrjId); return r && { label: r.titel || '(ohne Titel)', id: r.id }; }
+    if (t === 'applications' && selectedAppId) { const r = live('applications', selectedAppId); return r && { label: $('appw-title').textContent.trim() || 'Antrag', id: r.id }; }
+    if (t === 'blocks' && selectedBlkId) { const r = live('blocks', selectedBlkId); return r && { label: r.titel || 'Baustein', id: r.id }; }
+    if (t === 'prompts' && selectedPtId) { const r = live('promptTemplates', selectedPtId); return r && { label: r.title || 'Prompt-Vorlage', id: r.id }; }
+    return null;
+  }
+  const SELECT = { traeger: selectTraeger, foundations: selectFoundation, projects: selectProject, applications: selectApplication, blocks: selectBlock, prompts: selectPrompt };
+  const ARR = { traeger: 'traeger', foundations: 'foundations', projects: 'projects', applications: 'applications', blocks: 'blocks', prompts: 'promptTemplates' };
+  return NotizenKern({
+    app: 'Fundraising',
+    keyPrefix: 'fr_notiz',
+    penId: 'nz-pen',
+    bereichReihe: Object.values(TABS),
+    teilReihe: ['Seitenleiste', 'Liste', 'Arbeitsbereich', 'Übersicht', 'Anforderungsprofil', 'Kontakte', 'Bausteine', 'Budget',
+      'Projekte', 'Anträge', 'Dokument', 'Varianten-Editor', 'Import', 'Passung', 'Zahnrad-Menü', 'Einstellungen', 'Diagnose',
+      'Konflikt beim Speichern'],
+    store: {
+      list: () => (localData.notizen || []).filter(n => !n.deleted),
+      put(id, fields) {
+        const cur = (localData.notizen || []).find(n => n.id === id);
+        upsertRecord('notizen', { ...(cur || {}), ...fields, id, modified: nowIso(), deleted: false });
+        syncNow({ force: true });
+      },
+      remove(id) { tombstone('notizen', id); syncNow({ force: true }); },
+    },
+    detailOf(el, teil) {
+      if (teil === 'Seitenleiste') { const b = el.closest('button'); if (b) return (b.getAttribute('aria-label') || b.title || b.textContent).trim(); }
+      if (teil === 'Liste') { if (el.closest('.record-card')) return ''; }   // die Karte selbst ist der Datensatz
+      return undefined;
+    },
+    base() {
+      const f = FILTER[currentTab] && $(FILTER[currentTab]);
+      const ans = f && f.value ? f.options[f.selectedIndex].text : '';
+      const rec = datensatz();
+      return { bereich: TABS[currentTab], ansicht: ans, label: rec ? rec.label : '', id: rec ? rec.id : '' };
+    },
+    canGoto: o => !!TAB[o.bereich],
+    goto(o) {
+      const tab = TAB[o.bereich];
+      switchTab(tab);
+      const f = FILTER[tab] && $(FILTER[tab]);
+      if (f && o.ansicht) {
+        const opt = Array.from(f.options).find(x => x.text === o.ansicht);
+        if (opt && f.value !== opt.value) { f.value = opt.value; f.dispatchEvent(new Event('change')); }
+      }
+      if (!o.id || !SELECT[tab]) return;
+      if (!live(ARR[tab], o.id)) return `${o.label || 'Eintrag'} gibt es nicht mehr`;
+      SELECT[tab](o.id);
+      const reiter = Array.from(document.querySelectorAll(`#screen-${tab} .workspace-tab`)).find(b => b.textContent.trim() === o.teil);
+      if (reiter) reiter.click();
+      const ws = $(`${tab === 'traeger' ? 'trg' : tab.slice(0, 3)}-workspace`) || document.querySelector(`#screen-${tab} .workspace`);
+      const h = ws && ws.querySelector('h2, input, button');
+      if (h) { if (!h.matches('input, button')) h.tabIndex = -1; h.focus(); }
+    },
+    confirm: msg => showConfirm(msg),
+    modalOpen: () => !!document.querySelector('.modal-back.show'),
+    place(p) {
+      const sb = document.querySelector('.sidebar').getBoundingClientRect();
+      p.style.left = Math.round(sb.right + 8) + 'px';
+      p.style.bottom = '12px';
+    },
+  });
+})();
+
+</script>
 </body>
 </html>
