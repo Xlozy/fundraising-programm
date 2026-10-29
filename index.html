@@ -215,7 +215,8 @@ body.is-resizing { cursor: col-resize; user-select: none; }
 .kartei-title:hover { border-color: var(--line-2); }
 .kartei-title:focus { outline: none; border-color: var(--accent); background: var(--bg); }
 .kartei-title::placeholder { color: var(--muted); }
-.kartei-saved { font-size: 12px; color: var(--muted); }
+.kartei-saved { font-size: 12px; color: var(--muted); opacity: 0; transition: opacity .6s; }
+.kartei-saved.is-on { opacity: 1; transition: opacity .15s; }
 .kartei-body { padding: 4px 20px 20px; }
 .kartei-hint { color: var(--muted); font-size: 13px; }
 .kartei-foot { display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line-2); flex-wrap: wrap; flex-shrink: 0; }
@@ -429,6 +430,63 @@ select.in { background: var(--bg); }
 .person .rolle { color: var(--muted); }
 .le-person { display: flex; flex-direction: column; gap: 2px; padding-bottom: 8px; }
 .le-person + .le-person { border-top: 1px solid var(--line); padding-top: 8px; }
+
+/* ---------- Leise Bearbeitung ----------
+   Lesen und Schreiben sehen gleich aus: kein Rahmen, keine Hinweiszeilen, keine Unterlinien.
+   Ein offener Abschnitt ist nur an einer feinen Linie links und an der Schreibmarke erkennbar.
+   Abstände wie im Steckbrief, damit beim Öffnen nichts springt. */
+.sec.is-read:hover { border-color: transparent; }
+.sec.is-read:hover > .sec-head .sec-h { color: var(--text-2); }
+.sec.is-read { cursor: text; }
+.sec.is-editing { border-color: transparent; background: transparent; padding: 10px 12px; margin: 0 -12px; box-shadow: inset 2px 0 0 var(--line-3); border-radius: 0; }
+.sec.is-editing .sec-h, .sec.is-editing .sec-h.is-sub { color: var(--muted); }
+.sec.is-editing .hints { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sec .in { border-bottom-color: transparent; padding: 0; line-height: 1.45; color: var(--text-2); }
+.sec .in:focus { border-bottom-color: transparent; color: var(--text); }
+.sec .in::placeholder, .sec .gl input::placeholder { color: var(--faint); }
+.sec .in[aria-invalid="true"] { border-bottom-color: var(--danger); }
+.sec textarea.in { resize: none; overflow: hidden; display: block; }
+.sec textarea.in:not([data-line]) { line-height: 1.5; }
+/* Listen: Aufzählungspunkt wie im Steckbrief */
+.sec .le { gap: 4px; }
+.sec .le-row { position: relative; align-items: flex-start; gap: 12px; margin-left: 18px; }
+.sec .le-row::before { content: '•'; position: absolute; left: -14px; top: 0; line-height: 1.45; font-size: 14px; color: var(--text-2); }
+.sec .le-row.is-blank::before { color: var(--line-3); }
+.sec .le-row.is-blank > .in:first-child { border-bottom-style: none; }
+.sec .le-code { flex: 0 0 150px; }
+.sec .le-code .in { font-size: 12px; color: var(--muted); }
+.sec .le-row:focus-within .le-code .in { color: var(--chip-fg); }
+/* Gefördert: Teile ohne Inhalt nur in der Zeile, in der geschrieben wird */
+.sec .gl { gap: 0 5px; }
+.sec .gl .b { color: var(--text-2); }
+.sec .gl input { border-bottom-color: transparent; padding: 0; color: var(--text-2); field-sizing: content; min-width: 2ch; }
+.sec .gl input:focus { border-bottom: 1px solid transparent; color: var(--text); }
+.sec .gl input.z { color: var(--muted); }
+.gl .amt { display: inline-flex; gap: 5px; align-items: baseline; }
+.gl .amt .l2 { display: none; }
+.gl.no-amt:not(:focus-within) .amt, .gl.no-z:not(:focus-within) .z { display: none; }
+.gl.no-von:not(:focus-within) .von, .gl.no-von:not(:focus-within) .dash, .gl.no-von:not(:focus-within) .amt .l1 { display: none; }
+.gl.no-von:not(.no-bis):not(:focus-within) .amt .l2 { display: inline; }
+.gl.no-bis:not(:focus-within) .bis, .gl.no-bis:not(:focus-within) .dash { display: none; }
+/* Passung: eine Zeile wie gelesen; Unbewertete leise dahinter */
+.sec .pass-edit { flex-direction: row; flex-wrap: wrap; gap: 6px 28px; align-items: center; }
+.sec .pass-row > .pass-name { width: auto; margin-right: 4px; }
+.sec .pass-row.is-unrated { opacity: .6; }
+.sec .pass-none { display: none; }
+.sec .pass-dots { gap: 0; }
+.sec .pass-dots button { width: 16px; height: 16px; border-width: 4px; }
+/* Fördergrösse und Termine: Spalten wie im Steckbrief, Entfernen-Kreuz nur beim Darüberfahren */
+.sec .grid-groesse { grid-template-columns: 210px minmax(0, 1fr) 28px; gap: 4px 12px; line-height: 1.5; }
+.sec .grid-groesse .in[data-f="bezeichnung"] { color: var(--muted); }
+.sec .grid-termine { grid-template-columns: 96px minmax(0, 1fr) auto 28px; gap: 6px 14px; }
+.sec .grid-termine .chk input { accent-color: var(--muted); }
+.sec .le-code .in { text-overflow: ellipsis; }
+.sec .grid-termine .in[data-f="datum"] { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sec .grid-termine .chk { min-height: 0; font-size: 13px; color: var(--muted); }
+.sec .x { opacity: 0; height: 22px; }
+.sec .x:hover, .sec .x:focus-visible { opacity: 1; }
+.sec [data-add-termin] { display: none; }
+.sec .sub-h { margin-top: 4px; }
 .doc-pfad { color: var(--muted); font-size: 13px; }
 
 /* ---------- Dialoge ---------- */
@@ -1261,18 +1319,20 @@ const scheduleListRefresh = debounce(() => { renderListe(); markSelectedRow(); u
 function patch(type, id, fields) {
   if (!Store.get(type, id)) return;
   Store.put(type, id, fields);
-  updateSaved();
+  updateSaved(true);
   scheduleListRefresh();
 }
 
-// «gespeichert hh:mm» oben in der Kartei (B1)
-function updateSaved() {
+// «gespeichert» oben in der Kartei: nur kurz nach einem Speichern, sonst leer (ruhiges Lesen)
+let savedTimer = null;
+function updateSaved(fresh) {
   const el = $('karteiSaved');
-  const sel = currentSelection();
-  if (!el || !sel) return;
-  const it = Store.get(sel.type, sel.id);
-  const d = new Date(it && it.modified);
-  el.textContent = isNaN(d) ? '' : `gespeichert ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (!el) return;
+  clearTimeout(savedTimer);
+  if (!fresh) { el.textContent = ''; el.classList.remove('is-on'); return; }
+  el.textContent = 'gespeichert';
+  el.classList.add('is-on');
+  savedTimer = setTimeout(() => el.classList.remove('is-on'), 2500);
 }
 
 /* ---------- Rückgängig (Strg Z ausserhalb von Feldern) ----------
@@ -1607,6 +1667,10 @@ function attachCombo(input, o) {
    mehrzeilig einfügen = mehrere Punkte (B2). Am Ende steht immer eine leere Zeile. ----------
    cfg: { host, work, blank(), isEmpty(r), rowHtml(r,i,blank), first, persist(rows), wireRow?(el,i),
           pasteSplit?, refillOnFirst? (leere Zeile bekommt beim ersten Zeichen ihre übrigen Felder) } */
+// Einzeiliger Punkt als Textfeld, das wie der gelesene Text umbricht
+function fitLine(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+const lineHtml = (attrs, value) => `<textarea class="in" rows="1" data-line spellcheck="false" ${attrs}>${escapeHtml(value)}</textarea>`;
+
 function listEditor(cfg) {
   const host = cfg.host;
   const ensureBlank = () => { if (!cfg.work.length || !cfg.isEmpty(cfg.work[cfg.work.length - 1])) cfg.work.push(cfg.blank()); };
@@ -1616,6 +1680,7 @@ function listEditor(cfg) {
     ensureBlank();
     host.innerHTML = cfg.work.map((r, i) => cfg.rowHtml(r, i, i === cfg.work.length - 1 && cfg.isEmpty(r))).join('');
     host.querySelectorAll('[data-i]').forEach(el => cfg.wireRow && cfg.wireRow(el, +el.dataset.i));
+    host.querySelectorAll('textarea[data-line]').forEach(fitLine);
     if (focusI != null) {
       const f = host.querySelector(`[data-i="${focusI}"] [data-f="${focusF || cfg.first}"]`);
       if (f) {
@@ -1630,6 +1695,10 @@ function listEditor(cfg) {
     const rowEl = e.target.closest('[data-i]');
     if (!f || !rowEl) return;
     const i = +rowEl.dataset.i;
+    if (e.target.dataset.line != null) {   // Punkt bleibt eine Zeile: Zeilenumbrüche raus, Höhe nachführen
+      if (/\n/.test(e.target.value)) e.target.value = e.target.value.replace(/\s*\n\s*/g, ' ');
+      fitLine(e.target);
+    }
     cfg.work[i][f] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     if (cfg.onInput) cfg.onInput(cfg.work[i], f, e.target);
     if (i === cfg.work.length - 1 && !cfg.isEmpty(cfg.work[i])) {
@@ -1660,7 +1729,8 @@ function listEditor(cfg) {
     if (!rowEl || !f) return;
     const i = +rowEl.dataset.i;
     const last = cfg.work.length - 1;
-    if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && e.target.tagName !== 'TEXTAREA') {
+    if (e.key === 'Enter' && e.shiftKey && e.target.dataset.line != null) { e.preventDefault(); return; }
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && (e.target.tagName !== 'TEXTAREA' || e.target.dataset.line != null)) {
       e.preventDefault();
       if (cfg.isEmpty(cfg.work[i])) return;
       cfg.work.splice(i + 1, 0, cfg.blank());
@@ -1900,6 +1970,7 @@ const SEC_RHYTHMUS = {
   },
 };
 
+const glCls = r => ['gl', !String(r.von).trim() && !String(r.bis).trim() ? 'no-amt' : '', !String(r.von).trim() ? 'no-von' : '', !String(r.bis).trim() ? 'no-bis' : '', !String(r.zusatz).trim() ? 'no-z' : ''].filter(Boolean).join(' ');
 const SEC_GEFOERDERT = {
   key: 'gefoerdert', label: 'Gefördert', add: '+ Punkt',
   empty: s => !(s.gefoerdert || []).length,
@@ -1918,13 +1989,13 @@ const SEC_GEFOERDERT = {
       persist: rows => saveSel({ gefoerdert: rows.filter(r => r.gegenstand.trim()).map(r => ({
         gegenstand: r.gegenstand.trim(), vonChf: parseChf(r.von), bisChf: parseChf(r.bis), zusatz: stripParens(r.zusatz) || null,
       })) }),
-      onInput: (r, f, inp) => { inp.size = sz(inp.value, inp.placeholder); },
+      onInput: (r, f, inp) => { inp.size = sz(inp.value, inp.placeholder); const row = inp.closest('.gl'); if (row) row.className = glCls(r); },
+      // Leere Teile (von, bis, Zusatz) erscheinen erst in der Zeile, in der man schreibt
       rowHtml: (r, i, blank) => blank
         ? `<div class="gl is-blank" data-i="${i}"><span class="b" aria-hidden="true">•</span><span class="combo"><input data-f="gegenstand" aria-label="Neuer Fördergegenstand" placeholder="Was wird gefördert?" size="${sz('', 'Was wird gefördert?')}" value=""></span></div>`
-        : `<div class="gl" data-i="${i}"><span class="b" aria-hidden="true">•</span>
+        : `<div class="${glCls(r)}" data-i="${i}"><span class="b" aria-hidden="true">•</span>
           <span class="combo"><input data-f="gegenstand" aria-label="Fördergegenstand" value="${escapeHtml(r.gegenstand)}" placeholder="Gegenstand" size="${sz(r.gegenstand, 'Gegenstand')}"></span>
-          <span>· CHF</span><input data-f="von" aria-label="von CHF" inputmode="numeric" value="${escapeHtml(r.von)}" placeholder="von" size="${sz(r.von, 'von')}">
-          <span>–</span><input data-f="bis" aria-label="bis CHF" inputmode="numeric" value="${escapeHtml(r.bis)}" placeholder="bis" size="${sz(r.bis, 'bis')}">
+          <span class="amt"><span class="l1">· CHF</span><span class="l2">· bis CHF</span><input class="von" data-f="von" aria-label="von CHF" inputmode="numeric" value="${escapeHtml(r.von)}" placeholder="von" size="${sz(r.von, 'von')}"><span class="dash">–</span><input class="bis" data-f="bis" aria-label="bis CHF" inputmode="numeric" value="${escapeHtml(r.bis)}" placeholder="bis" size="${sz(r.bis, 'bis')}"></span>
           <input class="z" data-f="zusatz" aria-label="Zusatz" value="${escapeHtml(r.zusatz)}" placeholder="(Zusatz)" size="${sz(r.zusatz, '(Zusatz)')}"></div>`,
       wireRow: rowEl => attachCombo(rowEl.querySelector('[data-f="gegenstand"]'), {
         options: () => vocab('gegenstand'),
@@ -1952,7 +2023,7 @@ function simpleListSec(key, label, field) {
       blank: () => ({ text: '' }),
       isEmpty: r => !r.text.trim(),
       persist: rows => saveSel({ [field]: rows.map(r => r.text.trim()) }),
-      rowHtml: (r, i, blank) => `<div class="le-row${blank ? ' is-blank' : ''}" data-i="${i}"><input class="in" data-f="text" aria-label="${blank ? 'Neuer Punkt' : 'Punkt ' + (i + 1)}" placeholder="${blank ? 'Neuer Punkt' : ''}" value="${escapeHtml(r.text)}"></div>`,
+      rowHtml: (r, i, blank) => `<div class="le-row${blank ? ' is-blank' : ''}" data-i="${i}">${lineHtml(`data-f="text" aria-label="${blank ? 'Neuer Punkt' : 'Punkt ' + (i + 1)}" placeholder="${blank ? 'Neuer Punkt' : ''}"`, r.text)}</div>`,
     }),
   };
 }
@@ -1988,7 +2059,7 @@ const SEC_ANFORDERUNGEN = {
       umfang: null, maxZeichen: null, bedingung: null, ...r, text: r.text.trim(), code: normCode(r.code) || null,
     })) }),
     rowHtml: (r, i, blank) => `<div class="le-row${blank ? ' is-blank' : ''}" data-i="${i}">
-      <input class="in" data-f="text" aria-label="${blank ? 'Neuer Punkt' : 'Punkt ' + (i + 1)}" placeholder="${blank ? 'Neuer Punkt' : ''}" value="${escapeHtml(r.text)}">
+      ${lineHtml(`data-f="text" aria-label="${blank ? 'Neuer Punkt' : 'Punkt ' + (i + 1)}" placeholder="${blank ? 'Neuer Punkt' : ''}"`, r.text)}
       ${blank ? '' : `<span class="le-code combo is-block"><input class="in" data-f="code" aria-label="Kurzbegriff zu Punkt ${i + 1}" placeholder="Kurzbegriff" value="${escapeHtml(r.code)}"></span>`}</div>`,
     wireRow: rowEl => {
       const inp = rowEl.querySelector('[data-f="code"]');
@@ -2237,7 +2308,7 @@ function secHtml(def, s, ctx) {
   const hc = def.sub ? 'sec-h is-sub' : 'sec-h';
   if (isEdit) {
     return `<section class="sec is-editing" ${attrs} aria-labelledby="sh-${def.key}">${sep}
-      <div class="sec-head"><h3 class="${hc}" id="sh-${def.key}">${escapeHtml(def.label)}</h3><span class="sec-aside">wird bearbeitet</span></div>
+      <div class="sec-head"><h3 class="${hc}" id="sh-${def.key}">${escapeHtml(def.label)}<span class="sr-only"> (wird bearbeitet)</span></h3></div>
       ${def.edit(s, ctx)}</section>`;
   }
   const title = def.noEdit ? escapeHtml(def.label)
@@ -2253,7 +2324,7 @@ function wireSec(el, def, s, ctx) {
   if (el.classList.contains('is-read')) el.addEventListener('click', e => {
     if (e.target.closest('a, button, input, select, textarea, label, [data-no-edit]')) return;
     if (window.getSelection && String(window.getSelection())) return;   // Text markieren öffnet nicht
-    openSection(def.key);
+    openSection(def.key, null, { x: e.clientX, y: e.clientY });   // Schreibmarke dort, wo geklickt wurde
   });
   if (el.hidden) return;
   if (def.empty && def.empty(s)) { if (def.wireAdd) def.wireAdd(el, s, ctx); return; }
@@ -2290,7 +2361,7 @@ function renderErgaenzen() {
   host.querySelectorAll('[data-erg]').forEach(b => b.addEventListener('click', () => openSection(b.dataset.erg)));
 }
 
-function openSection(key, focusSel) {
+function openSection(key, focusSel, pt) {
   const ctx = karteiCtx();
   if (!ctx) return;
   if (editing && editing.key === key && editing.id === ctx.id) return;
@@ -2299,8 +2370,32 @@ function openSection(key, focusSel) {
   renderSec(key);
   renderErgaenzen();
   const el = secEl(key);
-  const f = (focusSel && el.querySelector(focusSel)) || el.querySelector('input:not([type=checkbox]), textarea, select, .pass-dots button');
-  if (f) f.focus();
+  const FOK = 'input:not([type=checkbox]), textarea, select, .pass-dots button';
+  let f = focusSel && el.querySelector(focusSel);
+  // Klick in den Text: das Feld unter dem Mauszeiger, sonst das nächstgelegene in derselben Höhe
+  if (!f && pt) {
+    const hit = document.elementFromPoint(pt.x, pt.y);
+    f = hit && hit.closest && hit.closest(FOK);
+    if (!f || !el.contains(f)) {
+      let best = null, bd = Infinity;
+      el.querySelectorAll(FOK).forEach(c => {
+        const r = c.getBoundingClientRect();
+        if (!r.height) return;
+        const dy = pt.y < r.top ? r.top - pt.y : pt.y > r.bottom ? pt.y - r.bottom : 0;
+        const dx = pt.x < r.left ? r.left - pt.x : pt.x > r.right ? pt.x - r.right : 0;
+        const d = dy * 4 + dx;
+        if (d < bd) { bd = d; best = c; }
+      });
+      f = best;
+    }
+  }
+  f = f || el.querySelector(FOK);
+  if (f) {
+    f.focus();
+    if (pt && f.setSelectionRange && f.type !== 'checkbox' && f.value != null) {
+      const l = f.value.length; f.setSelectionRange(l, l);
+    }
+  }
 }
 
 function closeSection(o = {}) {
@@ -2792,7 +2887,7 @@ const SEC_GESUCHE = {
           const before = snapshot('gesuche', gid);
           Store.put('gesuche', gid, { [f]: v });
           pushUndo('Gesuch', [{ type: 'gesuche', id: gid, obj: before }]);
-          updateSaved();
+          updateSaved(true);
           if (f === 'status') { again(`#gs-${gid}`); scheduleListRefresh(); return; }
           // Zusammenfassung in der Zeile nachführen, ohne neu zu zeichnen (Fokus bleibt)
           const fresh = Store.get('gesuche', gid);
@@ -3071,7 +3166,7 @@ function renderGesuchstexte(host, prjId, opts = {}) {
       const id = t ? t.id : null;
       const nid = Store.put('gesuchstexte', id, { projektId: prjId, code: key, text: v });
       if (!t) before = { __neu: nid };
-      updateSaved();
+      updateSaved(true);
     };
     const soon = debounce(commit, 300);
     ta.addEventListener('input', () => {
